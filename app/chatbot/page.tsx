@@ -59,19 +59,19 @@ const AIChatbot = () => {
       <Navbar />
       <div className="container mx-auto px-4 pt-20 pb-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 my-17">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <Bot className="w-8 h-8 text-sky-500" />
-              <h1 className="text-3xl font-bold text-slate-900">AI Legal Assistant</h1>
+              <Bot className="w-7 h-8 text-sky-500 " />
+              <h1 className="text-3xl  font-bold text-slate-900">AI Legal Assistant</h1>
             </div>
             <p className="text-slate-600">Ask legal questions and get instant AI-powered guidance</p>
           </div>
 
           <Card className="h-[600px] flex flex-col">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Scale className="w-5 h-5" />
-                <span>Legal Chat</span>
+              <CardTitle className="flex items-center space-x-2 mx-2.5">
+                <Scale className="w-5 h-5 text-black" />
+                <span className='text-black'>Legal Chat</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
@@ -83,8 +83,8 @@ const AIChatbot = () => {
                   >
                     <div
                       className={`max-w-[80%] rounded-lg p-3 ${message.sender === 'user'
-                          ? 'bg-sky-500 text-white'
-                          : 'bg-slate-100 text-slate-900'
+                        ? 'bg-sky-500 text-white'
+                        : 'bg-slate-100 text-slate-900'
                         }`}
                     >
                       <div className="flex items-start space-x-2">

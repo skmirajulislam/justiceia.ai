@@ -23,7 +23,8 @@ const TestimonialsSection = () => {
       image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
       content: 'The legal library is incredibly comprehensive. AI-powered summaries help me understand complex judgments quickly.',
       rating: 5
-    }
+    },
+
   ];
 
   const stats = [
@@ -44,7 +45,7 @@ const TestimonialsSection = () => {
           <p className="text-xl text-slate-600 mb-12 max-w-3xl mx-auto">
             Our platform has helped thousands of lawyers and clients navigate the legal system more efficiently.
           </p>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
@@ -60,7 +61,7 @@ const TestimonialsSection = () => {
           <h3 className="text-2xl font-bold text-slate-900 text-center mb-12">
             What Our Users Say
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <div
@@ -69,7 +70,7 @@ const TestimonialsSection = () => {
               >
                 {/* Quote icon */}
                 <Quote className="w-8 h-8 text-sky-400 mb-4" />
-                
+
                 {/* Content */}
                 <p className="text-slate-600 mb-6 leading-relaxed">
                   "{testimonial.content}"

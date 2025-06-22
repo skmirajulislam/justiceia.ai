@@ -50,7 +50,7 @@ const ServicesSection = () => {
             Everything You Need for Legal Success
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            From AI-powered research to secure consultations, our platform provides all the tools 
+            From AI-powered research to secure consultations, our platform provides all the tools
             you need to navigate India's legal landscape efficiently.
           </p>
         </div>

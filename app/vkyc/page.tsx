@@ -39,7 +39,7 @@ const VKYC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
       <Navbar />
-      <div className="container mx-auto px-4 pt-20 pb-8">
+      <div className="container my-15 mx-auto px-4 pt-20 pb-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
@@ -56,8 +56,8 @@ const VKYC = () => {
                 {steps.map((step, index) => (
                   <div key={step.id} className="flex items-center">
                     <div className={`flex items-center justify-center w-10 h-10 rounded-full ${currentStep >= step.id
-                        ? 'bg-sky-500 text-white'
-                        : 'bg-slate-200 text-slate-600'
+                      ? 'bg-sky-500 text-white'
+                      : 'bg-slate-200 text-slate-600'
                       }`}>
                       <step.icon className="w-5 h-5" />
                     </div>
@@ -88,9 +88,9 @@ const VKYC = () => {
             </CardHeader>
             <CardContent>
               {currentStep === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-6 text-black">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 ">
                       <Label htmlFor="firstName">First Name</Label>
                       <Input id="firstName" placeholder="Enter your first name" />
                     </div>

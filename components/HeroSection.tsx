@@ -37,7 +37,7 @@ const HeroSection = () => {
 
         {/* Subtitle */}
         <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Your intelligent legal companion for case research, document analysis, 
+          Your intelligent legal companion for case research, document analysis,
           and connecting with expert advocates across India.
         </p>
 

@@ -49,10 +49,10 @@ const Footer = () => {
               <span className="text-xl font-bold">Advocate.ai</span>
             </div>
             <p className="text-slate-400 mb-6 max-w-md">
-              Empowering legal access with AI in India. Your intelligent companion for case research, 
+              Empowering legal access with AI in India. Your intelligent companion for case research,
               document analysis, and connecting with expert advocates.
             </p>
-            
+
             {/* Contact info */}
             <div className="space-y-2 text-sm text-slate-400">
               <div className="flex items-center space-x-2">
@@ -118,7 +118,7 @@ const Footer = () => {
             <div className="text-slate-400 text-sm mb-4 md:mb-0">
               © 2024 Advocate.ai. All rights reserved. | Built with ❤️ for the Indian Legal Community
             </div>
-            
+
             {/* Social links */}
             <div className="flex space-x-4">
               {socialLinks.map((social) => (

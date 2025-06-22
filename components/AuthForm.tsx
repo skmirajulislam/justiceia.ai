@@ -44,7 +44,7 @@ const AuthForm = () => {
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
@@ -54,11 +54,11 @@ const AuthForm = () => {
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Input 
-                      id="password" 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="Enter your password" 
-                      required 
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      required
                     />
                     <Button
                       type="button"
@@ -76,7 +76,7 @@ const AuthForm = () => {
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -100,11 +100,11 @@ const AuthForm = () => {
                 <div className="space-y-2">
                   <Label htmlFor="signupPassword">Password</Label>
                   <div className="relative">
-                    <Input 
-                      id="signupPassword" 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="Create a password" 
-                      required 
+                    <Input
+                      id="signupPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a password"
+                      required
                     />
                     <Button
                       type="button"
