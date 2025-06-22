@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { use, useState } from 'react';
-import { Search, Menu, X, Scale, User, FileText, Video, Brain, Camera, LogIn } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Menu, X, Scale, FileText, Video, Brain, Camera, LogIn } from 'lucide-react';
 import Link from 'next/link';
 
 const Navbar = () => {

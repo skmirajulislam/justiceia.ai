@@ -1,5 +1,6 @@
 'use client';
 import { Star, Quote } from 'lucide-react';
+import Image from 'next/image';
 
 const TestimonialsSection = () => {
   const testimonials = [
@@ -62,7 +63,7 @@ const TestimonialsSection = () => {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial) => (
               <div
                 key={testimonial.name}
                 className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-slate-200"
@@ -72,7 +73,7 @@ const TestimonialsSection = () => {
                 
                 {/* Content */}
                 <p className="text-slate-600 mb-6 leading-relaxed">
-                  "{testimonial.content}"
+                  &quot;{testimonial.content}&quot;
                 </p>
 
                 {/* Rating */}
@@ -83,10 +84,11 @@ const TestimonialsSection = () => {
                 </div>
 
                 {/* User info */}
-                <div className="flex items-center">
-                  <img
+                  <Image
                     src={testimonial.image}
                     alt={testimonial.name}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-full object-cover mr-4"
                   />
                   <div>
@@ -94,7 +96,6 @@ const TestimonialsSection = () => {
                     <div className="text-sm text-slate-600">{testimonial.role}</div>
                   </div>
                 </div>
-              </div>
             ))}
           </div>
         </div>
