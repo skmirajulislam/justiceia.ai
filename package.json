@@ -35,6 +35,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
@@ -48,6 +49,7 @@
     "react-resizable-panels": "^3.0.3",
     "react-router-dom": "^7.6.2",
     "recharts": "^2.15.4",
+    "shadcn-ui": "^0.9.5",
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2"
@@ -61,6 +63,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.4",
     "typescript": "^5"
   }
 }
