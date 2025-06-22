@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Video, Calendar, Clock, Star, MapPin, Phone, MessageCircle } from 'lucide-react';
+import { Video, Clock, Star, MapPin, Phone, MessageCircle } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import Image from 'next/image';
 
 interface Lawyer {
   id: string;
@@ -131,7 +132,7 @@ const VideoConsult = () => {
               <Card key={lawyer.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start space-x-4">
-                    <img
+                    <Image
                       src={lawyer.image}
                       alt={lawyer.name}
                       className="w-16 h-16 rounded-full object-cover bg-slate-200"

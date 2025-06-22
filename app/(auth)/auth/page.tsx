@@ -7,13 +7,13 @@ import Navbar from '@/components/Navbar';
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = async (data: any) => {
+  const handleSignIn = async () => {
     setIsLoading(true);
     // TODO: Implement sign-in logic
     setTimeout(() => setIsLoading(false), 1000);
   };
 
-  const handleSignUp = async (data: any) => {
+  const handleSignUp = async () => {
     setIsLoading(true);
     // TODO: Implement sign-up logic
     setTimeout(() => setIsLoading(false), 1000);
