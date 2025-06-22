@@ -27,7 +27,7 @@ const VideoConsult = () => {
   const lawyers: Lawyer[] = [
     {
       id: '1',
-      name: 'Adv. Priya Sharma',
+      name: 'Adv. Sk Sahil',
       specialization: 'Corporate Law',
       experience: 12,
       rating: 4.8,
