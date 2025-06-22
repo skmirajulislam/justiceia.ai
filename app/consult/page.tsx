@@ -34,43 +34,43 @@ const VideoConsult = () => {
       location: 'Delhi',
       rate: 2500,
       available: true,
-      image: '/placeholder.svg',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSHZyIfA6cYuFzfnxOvmJDpeILslVNEPk4Bhyi',
       languages: ['Hindi', 'English']
     },
     {
       id: '2',
-      name: 'Adv. Rajesh Kumar',
+      name: 'Adv. Sukanta',
       specialization: 'Criminal Law',
       experience: 15,
       rating: 4.9,
       location: 'Mumbai',
       rate: 3000,
       available: true,
-      image: '/placeholder.svg',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuS4eHuMH7PAopu1cVa8RQ5YSkIXqCWsfOU9EdL',
       languages: ['Hindi', 'English', 'Marathi']
     },
     {
       id: '3',
-      name: 'Adv. Meera Patel',
+      name: 'Adv. Sk Miraj',
       specialization: 'Family Law',
       experience: 8,
       rating: 4.7,
       location: 'Bangalore',
       rate: 2000,
       available: false,
-      image: '/placeholder.svg',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSAuqWAA8tarEUqGVQDh4KJmBTcS0Oey5glLPd',
       languages: ['Hindi', 'English', 'Gujarati']
     },
     {
       id: '4',
-      name: 'Adv. Arjun Singh',
+      name: 'Adv. Arnab Das',
       specialization: 'Constitutional Law',
       experience: 20,
       rating: 4.9,
       location: 'Chennai',
       rate: 4000,
       available: true,
-      image: '/placeholder.svg',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSvTCesN3qYPZgjuhsNkzxMVdJeoCr3GIHcB5U',
       languages: ['Hindi', 'English', 'Tamil']
     }
   ];
