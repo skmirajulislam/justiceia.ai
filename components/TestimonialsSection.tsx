@@ -7,7 +7,7 @@ const TestimonialsSection = () => {
     {
       name: 'Advocate Priya Sharma',
       role: 'Senior Partner, Delhi High Court',
-      image: 'https://images.unsplash.com/photo-1494790108755-2616b9dea2a1?w=150&h=150&fit=crop&crop=face',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSHZyIfA6cYuFzfnxOvmJDpeILslVNEPk4Bhyi',
       content: 'Advocate.ai has revolutionized how I research case laws. The AI chatbot provides accurate references and saves me hours of manual research.',
       rating: 5
     },

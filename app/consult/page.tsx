@@ -133,6 +133,8 @@ const VideoConsult = () => {
                 <CardHeader>
                   <div className="flex items-start space-x-4">
                     <Image
+                      width={64}
+                      height={64}
                       src={lawyer.image}
                       alt={lawyer.name}
                       className="w-16 h-16 rounded-full object-cover bg-slate-200"
