@@ -51,13 +51,13 @@ const ServicesSection = () => {
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
             From AI-powered research to secure consultations, our platform provides all the tools
-            you need to navigate India's legal landscape efficiently.
+            you need to navigate India&#39;s legal landscape efficiently.
           </p>
         </div>
 
         {/* Services grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {services.map((service, index) => (
+          {services.map((service) => (
             <div
               key={service.title}
               className="group relative bg-white border border-slate-200 rounded-2xl p-8 hover:border-sky-300 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"

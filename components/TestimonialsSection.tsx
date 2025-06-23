@@ -1,12 +1,13 @@
 'use client';
 import { Star, Quote } from 'lucide-react';
+import Image from 'next/image';
 
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      name: 'Advocate Priya Sharma',
+      name: 'Advocate Sk Sahil',
       role: 'Senior Partner, Delhi High Court',
-      image: 'https://images.unsplash.com/photo-1494790108755-2616b9dea2a1?w=150&h=150&fit=crop&crop=face',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSHZyIfA6cYuFzfnxOvmJDpeILslVNEPk4Bhyi',
       content: 'Advocate.ai has revolutionized how I research case laws. The AI chatbot provides accurate references and saves me hours of manual research.',
       rating: 5
     },
@@ -63,7 +64,7 @@ const TestimonialsSection = () => {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial) => (
               <div
                 key={testimonial.name}
                 className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-slate-200"
@@ -73,7 +74,7 @@ const TestimonialsSection = () => {
 
                 {/* Content */}
                 <p className="text-slate-600 mb-6 leading-relaxed">
-                  "{testimonial.content}"
+                  &quot;{testimonial.content}&quot;
                 </p>
 
                 {/* Rating */}
@@ -84,16 +85,16 @@ const TestimonialsSection = () => {
                 </div>
 
                 {/* User info */}
-                <div className="flex items-center">
-                  <img
-                    src={testimonial.image}
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                  />
-                  <div>
-                    <div className="font-semibold text-slate-900">{testimonial.name}</div>
-                    <div className="text-sm text-slate-600">{testimonial.role}</div>
-                  </div>
+                <Image
+                  src={testimonial.image}
+                  alt={testimonial.name}
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 rounded-full object-cover mr-4"
+                />
+                <div>
+                  <div className="font-semibold text-slate-900">{testimonial.name}</div>
+                  <div className="text-sm text-slate-600">{testimonial.role}</div>
                 </div>
               </div>
             ))}
