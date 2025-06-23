@@ -39,7 +39,7 @@ const VideoConsult = () => {
     },
     {
       id: '2',
-      name: 'Adv. Sukanta',
+      name: 'Adv.   ',
       specialization: 'Criminal Law',
       experience: 15,
       rating: 4.9,
@@ -103,10 +103,10 @@ const VideoConsult = () => {
                   <select
                     value={selectedSpecialization}
                     onChange={(e) => setSelectedSpecialization(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-md bg-white"
+                    className="px-3 py-2 border border-slate-300 rounded-md bg-white text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
                   >
                     {specializations.map(spec => (
-                      <option key={spec} value={spec}>
+                      <option key={spec} value={spec} className="text-sm text-slate-700">
                         {spec === 'all' ? 'All Specializations' : spec}
                       </option>
                     ))}

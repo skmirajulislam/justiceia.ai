@@ -37,11 +37,11 @@ const VKYC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 overflow-x-hidden">
       <Navbar />
-      <div className="container mx-auto px-4 pt-20 pb-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
+      <div className="flex justify-center pt-20 pb-8 px-4">
+        <div className="w-full max-w-3xl space-y-8">
+          <div className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-4">
               <Camera className="w-8 h-8 text-sky-500" />
               <h1 className="text-3xl font-bold text-slate-900">Video KYC Verification</h1>
@@ -50,27 +50,47 @@ const VKYC = () => {
           </div>
 
           {/* Progress Steps */}
-          <Card className="mb-8">
+          <Card className="shadow-md rounded-2xl overflow-hidden">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 w-full">
                 {steps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${currentStep >= step.id
-                        ? 'bg-sky-500 text-white'
-                        : 'bg-slate-200 text-slate-600'
-                      }`}>
+                  <div
+                    key={step.id}
+                    className="relative flex md:flex-1 items-start md:items-center"
+                  >
+                    <div
+                      className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-full transition-all duration-300 
+                        ${currentStep >= step.id
+                          ? 'bg-sky-500 text-white shadow'
+                          : 'bg-slate-200 text-slate-600'
+                        }`}
+                    >
                       <step.icon className="w-5 h-5" />
                     </div>
-                    <div className="ml-3 hidden md:block">
-                      <p className={`text-sm font-medium ${currentStep >= step.id ? 'text-sky-600' : 'text-slate-600'
-                        }`}>
+
+                    <div className="ml-4">
+                      <p
+                        className={`text-sm font-semibold transition-colors 
+                          ${currentStep >= step.id ? 'text-sky-600' : 'text-slate-600'}`}
+                      >
                         Step {step.id}
                       </p>
-                      <p className="text-xs text-slate-500">{step.title}</p>
+                      <p className="text-xs text-slate-500 break-words">{step.title}</p>
                     </div>
+
+                    {/* Connector Lines */}
                     {index < steps.length - 1 && (
-                      <div className={`w-16 h-1 mx-4 ${currentStep > step.id ? 'bg-sky-500' : 'bg-slate-200'
-                        }`}></div>
+                      <>
+                        <div
+                          className={`hidden md:block absolute top-1/2 left-[calc(100%+0.5rem)] h-1 w-[40px] rounded 
+                            ${currentStep > step.id ? 'bg-sky-500' : 'bg-slate-200'}`}
+                        ></div>
+
+                        <div
+                          className={`block md:hidden absolute top-full left-5 mt-2 w-1 h-8 rounded 
+                            ${currentStep > step.id ? 'bg-sky-500' : 'bg-slate-200'}`}
+                        ></div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -183,7 +203,6 @@ const VKYC = () => {
                         <Video className="w-16 h-16 text-slate-400" />
                       )}
                     </div>
-
                     <h3 className="text-xl font-semibold mb-2">Video Verification</h3>
                     <p className="text-slate-600 mb-6">
                       {isRecording
@@ -235,7 +254,6 @@ const VKYC = () => {
                   <div className="w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircle className="w-12 h-12 text-green-600" />
                   </div>
-
                   <div>
                     <h3 className="text-2xl font-bold text-green-800 mb-2">Verification Complete!</h3>
                     <p className="text-slate-600 mb-6">
