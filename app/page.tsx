@@ -12,7 +12,7 @@ const HomePage = () => {
       <HeroSection />
       <ServicesSection />
       <TestimonialsSection />
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };
