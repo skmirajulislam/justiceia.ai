@@ -33,8 +33,8 @@ const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps)
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 ">
+      <Card className="w-full  max-w-md ">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
@@ -76,11 +76,6 @@ const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps)
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      required
                     />
                     <Button
                       type="button"
@@ -156,11 +151,6 @@ const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps)
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                    <Input
-                      id="signupPassword"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
-                      required
                     />
                     <Button
                       type="button"

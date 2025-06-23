@@ -102,7 +102,7 @@ const LegalLibrary = () => {
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-md bg-black"
+                    className="px-3 py-2 border border-slate-500 rounded-md bg-white"
                   >
                     {categories.map(category => (
                       <option key={category} value={category}>

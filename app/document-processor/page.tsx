@@ -126,7 +126,7 @@ const DocumentProcessor = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 my-16">
       <Navbar />
       <div className="container mx-auto px-4 pt-20 pb-8">
         <div className="max-w-6xl mx-auto">
@@ -149,8 +149,8 @@ const DocumentProcessor = () => {
             <CardContent>
               <div
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
-                    ? 'border-sky-400 bg-sky-50'
-                    : 'border-slate-300 hover:border-sky-400'
+                  ? 'border-sky-400 bg-sky-50'
+                  : 'border-slate-300 hover:border-sky-400'
                   }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
