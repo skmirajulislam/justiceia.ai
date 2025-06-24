@@ -1,11 +1,14 @@
 import * as React from "react"
 import * as AccordionPrimitive from "@radix-ui/react-accordion"
 import { ChevronDown } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 
+// Accordion component for displaying collapsible content sections
+// This component uses Radix UI's Accordion for accessibility and customization
 const Accordion = AccordionPrimitive.Root
 
+// Props for the Accordion component
+// This allows customization of the accordion's behavior and appearance
 const AccordionItem = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
@@ -18,6 +21,8 @@ const AccordionItem = React.forwardRef<
 ))
 AccordionItem.displayName = "AccordionItem"
 
+// AccordionTrigger component for the clickable header of each accordion item
+// This component uses Radix UI's Trigger for accessibility and customization
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
@@ -38,6 +43,8 @@ const AccordionTrigger = React.forwardRef<
 ))
 AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
+// AccordionContent component for the collapsible content of each accordion item
+// This component uses Radix UI's Content for accessibility and customization
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>

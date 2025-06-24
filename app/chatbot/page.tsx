@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, Bot, User, Scale } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
+// Define the type for messages
+// This will help with TypeScript type checking and autocompletion
 interface Message {
   id: string;
   text: string;
@@ -14,6 +16,8 @@ interface Message {
   timestamp: Date;
 }
 
+// AIChatbot component for the legal assistant chatbot
+// This component handles the chat interface, message sending, and AI responses
 const AIChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -23,9 +27,13 @@ const AIChatbot = () => {
       timestamp: new Date()
     }
   ]);
+  // State to manage input message and loading state
+  // inputMessage is the current message being typed by the user
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Function to handle sending messages
+  // This function will be called when the user submits their message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;

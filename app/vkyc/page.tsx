@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import React from 'react';
 const VKYC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isRecording, setIsRecording] = useState(false);
+  const [aadhaarFiles, setAadhaarFiles] = useState<FileList | null>(null);
+  const [panFile, setPanFile] = useState<File | null>(null);
 
   const steps = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -29,7 +31,6 @@ const VKYC = () => {
 
   const startVideoRecording = () => {
     setIsRecording(true);
-    // Simulate video recording
     setTimeout(() => {
       setIsRecording(false);
       handleNextStep();
@@ -55,22 +56,15 @@ const VKYC = () => {
               <div className="flex items-center justify-between">
                 {steps.map((step, index) => (
                   <div key={step.id} className="flex items-center">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${currentStep >= step.id
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-slate-200 text-slate-600'
-                      }`}>
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${currentStep >= step.id ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                       <step.icon className="w-5 h-5" />
                     </div>
                     <div className="ml-3 hidden md:block">
-                      <p className={`text-sm font-medium ${currentStep >= step.id ? 'text-sky-600' : 'text-slate-600'
-                        }`}>
-                        Step {step.id}
-                      </p>
+                      <p className={`text-sm font-medium ${currentStep >= step.id ? 'text-sky-600' : 'text-slate-600'}`}>Step {step.id}</p>
                       <p className="text-xs text-slate-500">{step.title}</p>
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`w-16 h-1 mx-4 ${currentStep > step.id ? 'bg-sky-500' : 'bg-slate-200'
-                        }`}></div>
+                      <div className={`w-16 h-1 mx-4 ${currentStep > step.id ? 'bg-sky-500' : 'bg-slate-200'}`}></div>
                     )}
                   </div>
                 ))}
@@ -90,7 +84,7 @@ const VKYC = () => {
               {currentStep === 1 && (
                 <div className="space-y-6 text-black">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2 ">
+                    <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
                       <Input id="firstName" placeholder="Enter your first name" />
                     </div>
@@ -132,9 +126,22 @@ const VKYC = () => {
                         <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                         <h3 className="font-medium mb-2">Aadhaar Card</h3>
                         <p className="text-sm text-slate-600 mb-4">Upload front and back images</p>
-                        <Button variant="outline" size="sm">
-                          Choose Files
-                        </Button>
+                        <label className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border rounded-md text-sm font-medium bg-white hover:bg-gray-50 text-gray-700 border-gray-300">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Aadhaar
+                          <input
+                            type="file"
+                            multiple
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            hidden
+                            onChange={(e) => setAadhaarFiles(e.target.files)}
+                          />
+                        </label>
+                        {aadhaarFiles && (
+                          <p className="text-sm text-slate-600 mt-2">
+                            {Array.from(aadhaarFiles).map(file => file.name).join(', ')}
+                          </p>
+                        )}
                       </CardContent>
                     </Card>
 
@@ -143,9 +150,21 @@ const VKYC = () => {
                         <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                         <h3 className="font-medium mb-2">PAN Card</h3>
                         <p className="text-sm text-slate-600 mb-4">Upload clear image of PAN card</p>
-                        <Button variant="outline" size="sm">
-                          Choose File
-                        </Button>
+                        <label className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border rounded-md text-sm font-medium bg-white hover:bg-gray-50 text-gray-700 border-gray-300">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload PAN
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            hidden
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) setPanFile(e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                        {panFile && (
+                          <p className="text-sm text-slate-600 mt-2">{panFile.name}</p>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -188,8 +207,7 @@ const VKYC = () => {
                     <p className="text-slate-600 mb-6">
                       {isRecording
                         ? "Recording in progress... Please look at the camera and speak clearly."
-                        : "Click the button below to start your video verification session."
-                      }
+                        : "Click the button below to start your video verification session."}
                     </p>
                   </div>
 
@@ -199,7 +217,7 @@ const VKYC = () => {
                       <div>
                         <h4 className="font-medium text-yellow-800">Instructions</h4>
                         <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                          <li>• Ensure you&#39;re in a well-lit environment</li>
+                          <li>• Ensure you're in a well-lit environment</li>
                           <li>• Keep your documents ready for verification</li>
                           <li>• Speak clearly and follow the on-screen instructions</li>
                           <li>• The verification process takes about 2-3 minutes</li>
@@ -209,11 +227,7 @@ const VKYC = () => {
                   </div>
 
                   <div className="text-center">
-                    <Button
-                      onClick={startVideoRecording}
-                      disabled={isRecording}
-                      className="px-8 py-3"
-                    >
+                    <Button onClick={startVideoRecording} disabled={isRecording} className="px-8 py-3">
                       {isRecording ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

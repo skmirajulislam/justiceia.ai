@@ -2,6 +2,8 @@
 import { MessageSquare, Shield, BookOpen, Video, ArrowRight, Sparkles } from 'lucide-react';
 
 const ServicesSection = () => {
+  // Sample services data
+  // In a real application, this data would likely come from an API or database
   const services = [
     {
       icon: <MessageSquare className="w-8 h-8" />,
@@ -86,7 +88,7 @@ const ServicesSection = () => {
                 href={service.href}
                 className="inline-flex items-center space-x-2 text-sky-600 font-semibold hover:text-sky-700 group-hover:translate-x-1 transition-all duration-200"
               >
-                <span>Learn More</span>
+                <span >Learn More</span>
                 <ArrowRight className="w-4 h-4" />
               </a>
 

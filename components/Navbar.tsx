@@ -5,6 +5,8 @@ import { Search, Menu, X, Scale, FileText, Video, Brain, Camera, LogIn } from 'l
 import Link from 'next/link';
 
 const Navbar = () => {
+  // State to manage mobile menu visibility
+  // This will toggle the mobile menu when the hamburger icon is clicked
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navItems = [
     { name: 'AI Chatbot', href: '/chatbot', icon: <Search className="w-4 h-4" /> },
@@ -79,7 +81,7 @@ const Navbar = () => {
               <Link
                 key={item.name}
                 href={item.href}
-                className="flex items-center space-x-2 text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                className=" items-center space-x-2 text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.icon}
@@ -89,7 +91,7 @@ const Navbar = () => {
             <div className="pt-4 pb-2 border-t border-slate-200 mt-4">
               <Link
                 href="/auth"
-                className="flex items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <LogIn className="w-4 h-4" />

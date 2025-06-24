@@ -7,11 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Scale } from 'lucide-react';
 
+// Define the type for the props
+// This will help with TypeScript type checking and autocompletion
 type AuthFormProps = {
   onSignIn: (email: string, password: string) => Promise<void>;
   onSignUp: (name: string, email: string, password: string) => Promise<void>;
   isLoading: boolean;
 };
+
+// Define the component with the props type
 
 const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,11 +25,36 @@ const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps)
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Handlers for form submission
+  // These functions will call the provided onSignIn and onSignUp functions with the form
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSignIn(email, password);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle forgot password logic here
+    console.log('Forgot password clicked');
+    // You might want to call a function to handle this
+    // await onForgotPassword(email);
+    alert('Forgot password functionality is not implemented yet.');
+    // This is just a placeholder for the actual implementation
+    // You can replace this with your actual logic
+    // For example, you might want to send a reset password email
+    // or redirect to a password reset page.
+    // For now, we just log it to the console and show an alert.
+    console.log(`Forgot password for email: ${email}`);
+    setEmail(''); // Clear the email field after handling
+    setPassword(''); // Clear the password field as well    
+    setFirstName(''); // Clear first name field
+    setLastName(''); // Clear last name field
+    setPhone(''); // Clear phone field
+    setShowPassword(false); // Reset password visibility
+
+  };
+
+  // Sign up handler
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullName = `${firstName} ${lastName}`;

@@ -3,6 +3,8 @@ import { Star, Quote } from 'lucide-react';
 import Image from 'next/image';
 
 const TestimonialsSection = () => {
+  // Sample testimonials data
+  // In a real application, this data would likely come from an API or database
   const testimonials = [
     {
       name: 'Advocate Sk Sahil',
@@ -27,7 +29,8 @@ const TestimonialsSection = () => {
     },
 
   ];
-
+  // Sample statistics data
+  // In a real application, this data would likely come from an API or database
   const stats = [
     { value: '98%', label: 'Client Satisfaction' },
     { value: '10M+', label: 'Legal Queries Resolved' },
