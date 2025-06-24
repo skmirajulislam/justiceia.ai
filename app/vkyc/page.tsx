@@ -2,20 +2,23 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle,CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Camera, Upload, CheckCircle, AlertCircle, User, FileText, Video } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import { Textarea } from '@/components/ui/textarea'
 import React from 'react';
-
+const  color={
+  primary: '#000000' // Sky Blue
+}
 const VKYC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isRecording, setIsRecording] = useState(false);
 
   const steps = [
-    { id: 1, title: 'Personal Information', icon: User },
+    { id: 1, title: 'Personal Information', icon: User},
     { id: 2, title: 'Document Upload', icon: FileText },
     { id: 3, title: 'Video Verification', icon: Video },
     { id: 4, title: 'Verification Complete', icon: CheckCircle }
@@ -52,7 +55,11 @@ const VKYC = () => {
           {/* Progress Steps */}
           <Card className="shadow-md rounded-2xl overflow-hidden">
             <CardContent className="p-6">
+
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 w-full">
+
+              <div className="flex items-center justify-between" >
+
                 {steps.map((step, index) => (
                   <div
                     key={step.id}
@@ -105,6 +112,12 @@ const VKYC = () => {
                 {React.createElement(steps[currentStep - 1].icon, { className: "w-5 h-5" })}
                 <span>{steps[currentStep - 1].title}</span>
               </CardTitle>
+              <CardDescription className="text-slate-600">
+              {currentStep === 1 && "Please enter your personal information to proceed with verification."}
+              {currentStep === 2 && "Upload Aadhaar and PAN card to validate your identity."}
+              {currentStep === 3 && "Follow the video instructions carefully for facial and document verification."}
+              {currentStep === 4 && "All steps completed. You now have full access to legal services."}
+  </CardDescription>
             </CardHeader>
             <CardContent>
               {currentStep === 1 && (
@@ -131,14 +144,14 @@ const VKYC = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="address">Address</Label>
-                    <textarea
+                    <Textarea
                       id="address"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-md"
+                      className="w-full px-3 py-2 border border-slate-black rounded-md bg-transparent placeholder:text-slate-400"
                       rows={3}
                       placeholder="Enter your complete address"
-                    ></textarea>
+                    ></Textarea>
                   </div>
-                  <Button onClick={handleNextStep} className="w-full">
+                  <Button onClick={handleNextStep} className="w-full text-slate-600 hover:text-sky-500">
                     Continue to Document Upload
                   </Button>
                 </div>
@@ -150,7 +163,7 @@ const VKYC = () => {
                     <Card className="border-dashed border-2 border-slate-300 hover:border-sky-400 transition-colors">
                       <CardContent className="p-6 text-center">
                         <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                        <h3 className="font-medium mb-2">Aadhaar Card</h3>
+                        <h3 className="font-medium mb-2 text-slate-400">Aadhaar Card</h3>
                         <p className="text-sm text-slate-600 mb-4">Upload front and back images</p>
                         <Button variant="outline" size="sm">
                           Choose Files
@@ -161,7 +174,7 @@ const VKYC = () => {
                     <Card className="border-dashed border-2 border-slate-300 hover:border-sky-400 transition-colors">
                       <CardContent className="p-6 text-center">
                         <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                        <h3 className="font-medium mb-2">PAN Card</h3>
+                        <h3 className="font-medium mb-2 text-slate-400">PAN Card</h3>
                         <p className="text-sm text-slate-600 mb-4">Upload clear image of PAN card</p>
                         <Button variant="outline" size="sm">
                           Choose File
@@ -185,7 +198,7 @@ const VKYC = () => {
                     </div>
                   </div>
 
-                  <Button onClick={handleNextStep} className="w-full">
+                  <Button onClick={handleNextStep} className="w-full text-slate-600 hover:text-sky-500">
                     Continue to Video Verification
                   </Button>
                 </div>
@@ -203,7 +216,12 @@ const VKYC = () => {
                         <Video className="w-16 h-16 text-slate-400" />
                       )}
                     </div>
+
                     <h3 className="text-xl font-semibold mb-2">Video Verification</h3>
+
+
+                    <h3 className="text-xl font-semibold mb-2 text-slate-400">Video Verification</h3>
+
                     <p className="text-slate-600 mb-6">
                       {isRecording
                         ? "Recording in progress... Please look at the camera and speak clearly."
@@ -231,16 +249,16 @@ const VKYC = () => {
                     <Button
                       onClick={startVideoRecording}
                       disabled={isRecording}
-                      className="px-8 py-3"
+                      className="px-8 py-3 text-slate-600 hover:text-sky-500"
                     >
                       {isRecording ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Recording...
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 "></div>
+                          <span className="text-red-600">Recording...</span>
                         </>
                       ) : (
                         <>
-                          <Camera className="w-4 h-4 mr-2" />
+                          <Camera className="w-4 h-4 mr-2  text-slate-600 " />
                           Start Video Verification
                         </>
                       )}
@@ -265,24 +283,24 @@ const VKYC = () => {
                     <Card className="bg-green-50 border-green-200">
                       <CardContent className="p-4 text-center">
                         <Badge className="bg-green-100 text-green-800 mb-2">Verified</Badge>
-                        <p className="font-medium">Identity</p>
+                        <p className="font-medium text-green-800">Identity</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-green-50 border-green-200">
                       <CardContent className="p-4 text-center">
                         <Badge className="bg-green-100 text-green-800 mb-2">Verified</Badge>
-                        <p className="font-medium">Documents</p>
+                        <p className="font-medium text-green-800">Documents</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-green-50 border-green-200">
                       <CardContent className="p-4 text-center">
                         <Badge className="bg-green-100 text-green-800 mb-2">Verified</Badge>
-                        <p className="font-medium">Video KYC</p>
+                        <p className="font-medium text-green-800">Video KYC</p>
                       </CardContent>
                     </Card>
                   </div>
 
-                  <Button className="w-full" onClick={() => window.location.href = '/'}>
+                  <Button className="w-full text-slate-600 hover:text-sky-500" onClick={() => window.location.href = '/'}>
                     Access Legal Services
                   </Button>
                 </div>
