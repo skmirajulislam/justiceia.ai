@@ -71,11 +71,11 @@ const AIChatbot = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Scale className="w-5 h-5" />
-                <span>Legal Chat</span>
+                <span className="text-slate-900">Legal Chat</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+            <CardContent className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                 {messages.map((message) => (
                   <div
                     key={message.id}

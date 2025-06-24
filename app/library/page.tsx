@@ -102,7 +102,7 @@ const LegalLibrary = () => {
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-md bg-white"
+                    className="px-3 py-2 border border-slate-200 rounded-md bg-white text-slate-400"
                   >
                     {categories.map(category => (
                       <option key={category} value={category}>
@@ -121,10 +121,10 @@ const LegalLibrary = () => {
               <Card key={doc.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start mb-2">
-                    <Badge variant="outline">{doc.category}</Badge>
+                    <Badge variant="outline" className=" text-slate-700">{doc.category}</Badge>
                     <span className="text-sm text-slate-500">{new Date(doc.date).getFullYear()}</span>
                   </div>
-                  <CardTitle className="text-lg">{doc.title}</CardTitle>
+                  <CardTitle className="text-lg  ">{doc.title}</CardTitle>
                   <CardDescription className="text-sm text-slate-600">
                     {doc.court}
                   </CardDescription>
@@ -133,7 +133,7 @@ const LegalLibrary = () => {
                   <p className="text-sm text-slate-700 mb-4">{doc.description}</p>
                   <div className="flex flex-wrap gap-1 mb-4">
                     {doc.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
+                      <Badge key={index} variant="secondary" className="text-xs text-slate-700">
                         {tag}
                       </Badge>
                     ))}

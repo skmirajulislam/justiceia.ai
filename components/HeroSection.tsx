@@ -52,7 +52,7 @@ const HeroSection = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Laws, Judgments, Lawyers..."
-              className="w-full pl-12 pr-32 py-4 text-lg border border-slate-300 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white/80 backdrop-blur-sm shadow-lg transition-all duration-200"
+              className="w-full pl-12 pr-32 py-4 text-lg text-slate-500 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white/80 backdrop-blur-sm shadow-lg transition-all duration-200"
             />
             <button
               type="submit"
