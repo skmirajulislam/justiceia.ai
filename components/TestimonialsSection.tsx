@@ -5,9 +5,9 @@ import Image from 'next/image';
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      name: 'Advocate Priya Sharma',
+      name: 'Advocate Sk Sahil',
       role: 'Senior Partner, Delhi High Court',
-      image: 'https://images.unsplash.com/photo-1494790108755-2616b9dea2a1?w=150&h=150&fit=crop&crop=face',
+      image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSHZyIfA6cYuFzfnxOvmJDpeILslVNEPk4Bhyi',
       content: 'Advocate.ai has revolutionized how I research case laws. The AI chatbot provides accurate references and saves me hours of manual research.',
       rating: 5
     },
@@ -45,7 +45,7 @@ const TestimonialsSection = () => {
           <p className="text-xl text-slate-600 mb-12 max-w-3xl mx-auto">
             Our platform has helped thousands of lawyers and clients navigate the legal system more efficiently.
           </p>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
@@ -61,7 +61,7 @@ const TestimonialsSection = () => {
           <h3 className="text-2xl font-bold text-slate-900 text-center mb-12">
             What Our Users Say
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((testimonial) => (
               <div
@@ -70,7 +70,7 @@ const TestimonialsSection = () => {
               >
                 {/* Quote icon */}
                 <Quote className="w-8 h-8 text-sky-400 mb-4" />
-                
+
                 {/* Content */}
                 <p className="text-slate-600 mb-6 leading-relaxed">
                   &quot;{testimonial.content}&quot;
@@ -84,18 +84,18 @@ const TestimonialsSection = () => {
                 </div>
 
                 {/* User info */}
-                  <Image
-                    src={testimonial.image}
-                    alt={testimonial.name}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                  />
-                  <div>
-                    <div className="font-semibold text-slate-900">{testimonial.name}</div>
-                    <div className="text-sm text-slate-600">{testimonial.role}</div>
-                  </div>
+                <Image
+                  src={testimonial.image}
+                  alt={testimonial.name}
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 rounded-full object-cover mr-4"
+                />
+                <div>
+                  <div className="font-semibold text-slate-900">{testimonial.name}</div>
+                  <div className="text-sm text-slate-600">{testimonial.role}</div>
                 </div>
+              </div>
             ))}
           </div>
         </div>

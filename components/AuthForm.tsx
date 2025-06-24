@@ -7,22 +7,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Scale } from 'lucide-react';
 
-const AuthForm = () => {
+type AuthFormProps = {
+  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignUp: (name: string, email: string, password: string) => Promise<void>;
+  isLoading: boolean;
+};
+
+const AuthForm = ({ onSignIn, onSignUp, isLoading: formLoading }: AuthFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // TODO: Implement authentication logic
-    setTimeout(() => setIsLoading(false), 1000);
+    await onSignIn(email, password);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // TODO: Implement registration logic
-    setTimeout(() => setIsLoading(false), 1000);
+    const fullName = `${firstName} ${lastName}`;
+    await onSignUp(fullName, email, password);
   };
 
   return (
@@ -44,21 +51,30 @@ const AuthForm = () => {
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="Enter your email" required />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Input 
-                      id="password" 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="Enter your password" 
-                      required 
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                     <Button
                       type="button"
@@ -71,40 +87,68 @@ const AuthForm = () => {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                <Button type="submit" className="w-full" disabled={formLoading}>
+                  {formLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="First name" required />
+                    <Input
+                      id="firstName"
+                      placeholder="First name"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Last name" required />
+                    <Input
+                      id="lastName"
+                      placeholder="Last name"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signupEmail">Email</Label>
-                  <Input id="signupEmail" type="email" placeholder="Enter your email" required />
+                  <Input
+                    id="signupEmail"
+                    type="email"
+                    placeholder="Enter your email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="Enter your phone" required />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your phone"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signupPassword">Password</Label>
                   <div className="relative">
-                    <Input 
-                      id="signupPassword" 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="Create a password" 
-                      required 
+                    <Input
+                      id="signupPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                     <Button
                       type="button"
@@ -117,8 +161,8 @@ const AuthForm = () => {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Sign Up"}
+                <Button type="submit" className="w-full" disabled={formLoading}>
+                  {formLoading ? "Creating account..." : "Sign Up"}
                 </Button>
               </form>
             </TabsContent>
