@@ -3,8 +3,5 @@
         "env": {
             "PRISMA_GENERATE_SKIP_AUTOGEN_WARNING": "true"
         }
-    },
-    "hooks": {
-        "build": "npx prisma generate"
     }
 }
