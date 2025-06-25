@@ -1,0 +1,24 @@
+# Generate the Prisma client
+npx prisma generate
+
+# Push the schema to your database
+npx prisma db push
+
+# Or run migrations if you prefer
+npx prisma migrate dev --name init
+
+# Delete .next folder to clear build cache
+rm -rf .next
+rm -rf node_modules
+
+# Reinstall dependencies
+npm install
+
+# Generate Prisma client
+npx prisma generate
+
+# Start development server
+npm run dev
+
+
+npx prisma studio
