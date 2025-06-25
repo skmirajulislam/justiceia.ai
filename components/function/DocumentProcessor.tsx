@@ -1,20 +1,28 @@
 "use client"
-import { useState } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle, Eye, Download, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Upload, FileText, AlertTriangle, CheckCircle, Eye, Download, Trash2, FileEdit, Brain, Languages, Edit3, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
+import { useDropzone } from 'react-dropzone';
 
 interface DocumentAnalysis {
     documentType: string;
     keyPoints: string[];
     legalConcerns: string[];
     recommendations: string[];
+    summary: string;
 }
 
-interface ProcessedDocument {
+interface AnalyzedDocument {
     id: string;
     name: string;
     type: string;
@@ -22,121 +30,654 @@ interface ProcessedDocument {
     uploadDate: Date;
     status: 'processing' | 'completed' | 'error';
     analysis?: DocumentAnalysis;
+    documentUrl?: string;
+}
+
+interface GeneratedDocument {
+    id: string;
+    title: string;
+    type: string;
+    description: string;
+    content: string;
+    createdDate: Date;
+    status: 'generating' | 'completed' | 'error';
+    isEditing?: boolean;
+    editedContent?: string;
+}
+
+interface TranslatedDocument {
+    id: string;
+    name: string;
+    originalLanguage: string;
+    targetLanguage: string;
+    translatedContent: string;
+    uploadDate: Date;
+    status: 'processing' | 'completed' | 'error';
+    documentUrl?: string;
 }
 
 const DocumentProcessor = () => {
     const { toast } = useToast();
-    const [documents, setDocuments] = useState<ProcessedDocument[]>([
-        {
-            id: '1',
-            name: 'Employment_Contract.pdf',
-            type: 'PDF',
-            size: '2.3 MB',
-            uploadDate: new Date('2024-01-15'),
-            status: 'completed',
-            analysis: {
-                documentType: 'Employment Contract',
-                keyPoints: [
-                    'Employment term: 2 years with 6-month probation',
-                    'Salary: $75,000 annually with quarterly reviews',
-                    'Benefits include health insurance and 401k',
-                    'Remote work allowed 2 days per week',
-                    'Non-compete clause included'
-                ],
-                legalConcerns: [
-                    'Non-compete clause may be too restrictive',
-                    'Termination conditions need clarification'
-                ],
-                recommendations: [
-                    'Review non-compete clause with legal counsel',
-                    'Clarify intellectual property ownership terms',
-                    'Consider negotiating notice period'
-                ]
+    const { session, loading } = useAuth();
+    const router = useRouter();
+
+    const [activeSection, setActiveSection] = useState<'analyze' | 'generate' | 'translate'>('analyze');
+    const [analyzedDocs, setAnalyzedDocs] = useState<AnalyzedDocument[]>([]);
+    const [generatedDocs, setGeneratedDocs] = useState<GeneratedDocument[]>([]);
+    const [translatedDocs, setTranslatedDocs] = useState<TranslatedDocument[]>([]);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [apiKey, setApiKey] = useState('');
+    const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+
+    // Document Generation Form
+    const [docType, setDocType] = useState('');
+    const [docTitle, setDocTitle] = useState('');
+    const [docDescription, setDocDescription] = useState('');
+
+    // Translation Form
+    const [targetLanguage, setTargetLanguage] = useState('');
+
+    // Legal document types
+    const documentTypes = [
+        { value: 'contract', label: 'Contract Agreement' },
+        { value: 'nda', label: 'Non-Disclosure Agreement' },
+        { value: 'employment', label: 'Employment Agreement' },
+        { value: 'rental', label: 'Rental Agreement' },
+        { value: 'service', label: 'Service Agreement' },
+        { value: 'partnership', label: 'Partnership Agreement' },
+        { value: 'terms', label: 'Terms of Service' },
+        { value: 'privacy', label: 'Privacy Policy' },
+        { value: 'invoice', label: 'Legal Invoice' },
+        { value: 'notice', label: 'Legal Notice' }
+    ];
+
+    // Supported languages
+    const languages = [
+        { value: 'english', label: 'English' },
+        { value: 'bengali', label: 'Bengali' },
+        { value: 'hindi', label: 'Hindi' },
+        { value: 'telugu', label: 'Telugu' },
+        { value: 'tamil', label: 'Tamil' },
+        { value: 'spanish', label: 'Spanish' },
+        { value: 'chinese', label: 'Chinese' },
+        { value: 'french', label: 'French' },
+        { value: 'german', label: 'German' }
+    ];
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            if (loading) return;
+
+            if (!session) {
+                router.push('/auth');
+                return;
             }
-        },
-        {
-            id: '2',
-            name: 'Property_Agreement.docx',
-            type: 'DOCX',
-            size: '1.8 MB',
-            uploadDate: new Date('2024-01-14'),
-            status: 'processing'
+
+            // Check for stored API key
+            try {
+                const storedApiKey = localStorage.getItem('gemini_api_key');
+                if (storedApiKey) {
+                    setApiKey(storedApiKey);
+                    setShowApiKeyInput(false);
+                }
+            } catch (error) {
+                console.error('Error checking stored API key:', error);
+            }
+        };
+
+        checkAuth();
+    }, [session, loading, router]);
+
+    const handleApiKeySubmit = () => {
+        if (!apiKey.trim()) {
+            toast({
+                title: "API Key Required",
+                description: "Please enter your Gemini API key to continue.",
+                variant: "destructive",
+            });
+            return;
         }
-    ]);
 
-    const [dragActive, setDragActive] = useState(false);
+        localStorage.setItem('gemini_api_key', apiKey);
+        setShowApiKeyInput(false);
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
+        toast({
+            title: "API Key Saved",
+            description: "You can now use AI document processing features!",
+        });
+    };
+
+    // Add this method after the uploadToCloudinary function
+    const uploadToCloudinary = async (file: File): Promise<string | null> => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                return data.url;
+            } else {
+                // Handle specific error messages
+                if (response.status === 503) {
+                    toast({
+                        title: "Service Temporarily Unavailable",
+                        description: "File upload service is temporarily unavailable. Please try again later.",
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({
+                        title: "Upload Failed",
+                        description: data.error || 'Failed to upload file. Please try again.',
+                        variant: "destructive",
+                    });
+                }
+                throw new Error(data.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            return null;
         }
     };
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
+    // ...rest of existing code...
 
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFiles(e.dataTransfer.files);
+    const analyzeDocument = async (documentUrl: string, fileName: string): Promise<DocumentAnalysis | null> => {
+        try {
+            const response = await fetch('/api/documents/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    documentUrl,
+                    fileName,
+                    apiKey
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                return data.analysis;
+            } else {
+                throw new Error(data.error || 'Analysis failed');
+            }
+        } catch (error) {
+            console.error('Analysis error:', error);
+            return null;
         }
     };
 
-    const handleFiles = (files: FileList) => {
-        Array.from(files).forEach((file) => {
-            const newDoc: ProcessedDocument = {
-                id: Date.now().toString(),
+    // Analysis Dropzone
+    const onDropAnalyze = useCallback(async (acceptedFiles: File[]) => {
+        if (!apiKey) {
+            toast({
+                title: "API Key Required",
+                description: "Please set your Gemini API key first.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsAnalyzing(true);
+
+        for (const file of acceptedFiles) {
+            const newDoc: AnalyzedDocument = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 name: file.name,
-                type: file.type.split('/')[1].toUpperCase(),
+                type: file.type.split('/')[1]?.toUpperCase() || file.name.split('.').pop()?.toUpperCase() || 'FILE',
                 size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
                 uploadDate: new Date(),
                 status: 'processing'
             };
 
-            setDocuments(prev => [newDoc, ...prev]);
+            setAnalyzedDocs(prev => [newDoc, ...prev]);
 
-            // Simulate processing
-            setTimeout(() => {
-                setDocuments(prev => prev.map(doc =>
+            try {
+                // Upload to Cloudinary
+                const documentUrl = await uploadToCloudinary(file);
+
+                if (!documentUrl) {
+                    throw new Error('Failed to upload document');
+                }
+
+                // Analyze with AI
+                const analysis = await analyzeDocument(documentUrl, file.name);
+
+                if (analysis) {
+                    setAnalyzedDocs(prev => prev.map(doc =>
+                        doc.id === newDoc.id
+                            ? {
+                                ...doc,
+                                status: 'completed',
+                                analysis,
+                                documentUrl
+                            }
+                            : doc
+                    ));
+
+                    toast({
+                        title: "Analysis Complete",
+                        description: `${file.name} has been analyzed successfully`,
+                    });
+                } else {
+                    throw new Error('Analysis failed');
+                }
+            } catch (error) {
+                setAnalyzedDocs(prev => prev.map(doc =>
+                    doc.id === newDoc.id
+                        ? { ...doc, status: 'error' }
+                        : doc
+                ));
+
+                toast({
+                    title: "Analysis Failed",
+                    description: `Failed to analyze ${file.name}. Please try again.`,
+                    variant: "destructive",
+                });
+            }
+        }
+
+        setIsAnalyzing(false);
+    }, [apiKey, toast]);
+
+    // Translation Dropzone
+    const onDropTranslate = useCallback(async (acceptedFiles: File[]) => {
+        if (!apiKey) {
+            toast({
+                title: "API Key Required",
+                description: "Please set your Gemini API key first.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (!targetLanguage) {
+            toast({
+                title: "Language Required",
+                description: "Please select a target language first.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsTranslating(true);
+
+        for (const file of acceptedFiles) {
+            const newDoc: TranslatedDocument = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                name: file.name,
+                originalLanguage: 'auto-detect',
+                targetLanguage,
+                translatedContent: '',
+                uploadDate: new Date(),
+                status: 'processing'
+            };
+
+            setTranslatedDocs(prev => [newDoc, ...prev]);
+
+            try {
+                // Upload to Cloudinary
+                const documentUrl = await uploadToCloudinary(file);
+
+                if (!documentUrl) {
+                    throw new Error('Failed to upload document');
+                }
+
+                // Translate with AI
+                const response = await fetch('/api/documents/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        documentUrl,
+                        fileName: file.name,
+                        targetLanguage,
+                        apiKey
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    setTranslatedDocs(prev => prev.map(doc =>
+                        doc.id === newDoc.id
+                            ? {
+                                ...doc,
+                                status: 'completed',
+                                translatedContent: data.translatedContent,
+                                originalLanguage: data.originalLanguage,
+                                documentUrl
+                            }
+                            : doc
+                    ));
+
+                    toast({
+                        title: "Translation Complete",
+                        description: `${file.name} has been translated successfully`,
+                    });
+                } else {
+                    throw new Error(data.error || 'Translation failed');
+                }
+            } catch (error) {
+                setTranslatedDocs(prev => prev.map(doc =>
+                    doc.id === newDoc.id
+                        ? { ...doc, status: 'error' }
+                        : doc
+                ));
+
+                toast({
+                    title: "Translation Failed",
+                    description: `Failed to translate ${file.name}. Please try again.`,
+                    variant: "destructive",
+                });
+            }
+        }
+
+        setIsTranslating(false);
+    }, [apiKey, targetLanguage, toast]);
+
+    const { getRootProps: getAnalyzeRootProps, getInputProps: getAnalyzeInputProps, isDragActive: isAnalyzeDragActive } = useDropzone({
+        onDrop: onDropAnalyze,
+        accept: {
+            'application/pdf': ['.pdf']
+        },
+        multiple: true,
+        disabled: isAnalyzing
+    });
+
+    const { getRootProps: getTranslateRootProps, getInputProps: getTranslateInputProps, isDragActive: isTranslateDragActive } = useDropzone({
+        onDrop: onDropTranslate,
+        accept: {
+            'application/pdf': ['.pdf']
+        },
+        multiple: true,
+        disabled: isTranslating
+    });
+
+    const generateDocument = async () => {
+        if (!apiKey) {
+            toast({
+                title: "API Key Required",
+                description: "Please set your Gemini API key first.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (!docType || !docTitle || !docDescription) {
+            toast({
+                title: "Missing Information",
+                description: "Please fill in all required fields.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsGenerating(true);
+
+        const newDoc: GeneratedDocument = {
+            id: Date.now().toString(),
+            title: docTitle,
+            type: docType,
+            description: docDescription,
+            content: '',
+            createdDate: new Date(),
+            status: 'generating'
+        };
+
+        setGeneratedDocs(prev => [newDoc, ...prev]);
+
+        try {
+            const response = await fetch('/api/documents/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: docType,
+                    title: docTitle,
+                    description: docDescription,
+                    apiKey
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setGeneratedDocs(prev => prev.map(doc =>
                     doc.id === newDoc.id
                         ? {
                             ...doc,
                             status: 'completed',
-                            analysis: {
-                                documentType: 'Contract Document',
-                                keyPoints: [
-                                    'Key terms identified',
-                                    'Parties involved confirmed'
-                                ],
-                                legalConcerns: [
-                                    'Standard review recommended'
-                                ],
-                                recommendations: [
-                                    'Professional legal review advised'
-                                ]
-                            }
+                            content: data.content,
+                            editedContent: data.content
                         }
                         : doc
                 ));
+
                 toast({
-                    title: "Processing Complete",
-                    description: `${file.name} has been analyzed successfully`,
+                    title: "Document Generated",
+                    description: "Your legal document has been generated successfully!",
                 });
-            }, 3000);
+
+                // Reset form
+                setDocType('');
+                setDocTitle('');
+                setDocDescription('');
+            } else {
+                throw new Error(data.error || 'Generation failed');
+            }
+        } catch (error) {
+            setGeneratedDocs(prev => prev.map(doc =>
+                doc.id === newDoc.id
+                    ? { ...doc, status: 'error' }
+                    : doc
+            ));
+
+            toast({
+                title: "Generation Failed",
+                description: "Failed to generate document. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const downloadAsPDF = async (content: string, fileName: string, type: 'generated' | 'translated' = 'generated') => {
+        try {
+            const response = await fetch('/api/documents/download-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content,
+                    fileName,
+                    type
+                }),
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fileName}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                toast({
+                    title: "Download Started",
+                    description: "Your PDF is being downloaded.",
+                });
+            } else {
+                throw new Error('PDF generation failed');
+            }
+        } catch (error) {
+            toast({
+                title: "Download Failed",
+                description: "Failed to generate PDF. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const toggleEdit = (id: string) => {
+        setGeneratedDocs(prev => prev.map(doc =>
+            doc.id === id
+                ? {
+                    ...doc,
+                    isEditing: !doc.isEditing,
+                    editedContent: doc.isEditing ? doc.editedContent : doc.content
+                }
+                : doc
+        ));
+    };
+
+    const updateDocContent = (id: string, newContent: string) => {
+        setGeneratedDocs(prev => prev.map(doc =>
+            doc.id === id
+                ? { ...doc, editedContent: newContent }
+                : doc
+        ));
+    };
+
+    const saveDocContent = (id: string) => {
+        setGeneratedDocs(prev => prev.map(doc =>
+            doc.id === id
+                ? {
+                    ...doc,
+                    content: doc.editedContent || doc.content,
+                    isEditing: false
+                }
+                : doc
+        ));
+
+        toast({
+            title: "Changes Saved",
+            description: "Document content has been updated successfully.",
         });
     };
 
-    const deleteDocument = (id: string) => {
-        setDocuments(prev => prev.filter(doc => doc.id !== id));
+    const cancelEdit = (id: string) => {
+        setGeneratedDocs(prev => prev.map(doc =>
+            doc.id === id
+                ? {
+                    ...doc,
+                    isEditing: false,
+                    editedContent: doc.content
+                }
+                : doc
+        ));
+    };
+
+    const deleteAnalyzedDoc = (id: string) => {
+        setAnalyzedDocs(prev => prev.filter(doc => doc.id !== id));
         toast({
             title: "Document Deleted",
             description: "Document has been removed from your list",
         });
     };
+
+    const deleteGeneratedDoc = (id: string) => {
+        setGeneratedDocs(prev => prev.filter(doc => doc.id !== id));
+        toast({
+            title: "Document Deleted",
+            description: "Generated document has been removed",
+        });
+    };
+
+    const deleteTranslatedDoc = (id: string) => {
+        setTranslatedDocs(prev => prev.filter(doc => doc.id !== id));
+        toast({
+            title: "Document Deleted",
+            description: "Translated document has been removed",
+        });
+    };
+
+    // Helper function to render formatted text
+    const renderFormattedText = (text: string) => {
+        const lines = text.split('\n');
+        return lines.map((line, index) => {
+            // Handle bold text
+            const parts = line.split(/(\*\*.*?\*\*)/g);
+            const formattedLine = parts.map((part, partIndex) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return (
+                        <strong key={partIndex} className="font-bold">
+                            {part.slice(2, -2)}
+                        </strong>
+                    );
+                }
+                return part;
+            });
+
+            return (
+                <div key={index} className={line.trim() === '' ? 'mb-4' : 'mb-2'}>
+                    {formattedLine}
+                </div>
+            );
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-sky-500"></div>
+            </div>
+        );
+    }
+
+    if (showApiKeyInput) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+                <Navbar />
+                <div className="pt-16 px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-md mx-auto py-16">
+                        <Card>
+                            <CardHeader className="text-center">
+                                <CardTitle>AI Document Processor Setup</CardTitle>
+                                <CardDescription>
+                                    Enter your Gemini API key to use AI-powered document processing
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="apiKey">Gemini API Key</Label>
+                                    <Input
+                                        id="apiKey"
+                                        type="password"
+                                        placeholder="Enter your Gemini API key"
+                                        value={apiKey}
+                                        onChange={(e) => setApiKey(e.target.value)}
+                                    />
+                                </div>
+                                <Button onClick={handleApiKeySubmit} className="w-full">
+                                    Save API Key
+                                </Button>
+                                <p className="text-xs text-slate-500 text-center">
+                                    Get your free API key from Google AI Studio
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
@@ -145,152 +686,501 @@ const DocumentProcessor = () => {
                 <div className="max-w-7xl mx-auto py-8">
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold text-slate-900">AI Document Processor</h1>
-                        <p className="text-slate-600 mt-2">Upload legal documents for AI-powered analysis and insights</p>
+                        <p className="text-slate-600 mt-2">Analyze, generate, and translate legal documents with AI</p>
                     </div>
 
-                    {/* Upload Area */}
-                    <Card className="mb-8">
-                        <CardHeader>
-                            <CardTitle>Upload Documents</CardTitle>
-                            <CardDescription>
-                                Drag and drop your legal documents or click to browse. Supports PDF, DOCX, and TXT files.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div
-                                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
-                                        ? 'border-sky-400 bg-sky-50'
-                                        : 'border-slate-300 hover:border-slate-400'
+                    {/* Section Tabs */}
+                    <div className="mb-8">
+                        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-fit">
+                            <button
+                                onClick={() => setActiveSection('analyze')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === 'analyze'
+                                    ? 'bg-white text-slate-900 shadow'
+                                    : 'text-slate-600 hover:text-slate-900'
                                     }`}
-                                onDragEnter={handleDrag}
-                                onDragLeave={handleDrag}
-                                onDragOver={handleDrag}
-                                onDrop={handleDrop}
                             >
-                                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                                <p className="text-lg font-medium text-slate-700 mb-2">
-                                    Drop your documents here
-                                </p>
-                                <p className="text-slate-500 mb-4">
-                                    or click to browse from your device
-                                </p>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept=".pdf,.docx,.txt"
-                                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                                    className="hidden"
-                                    id="file-upload"
-                                />
-                                <label htmlFor="file-upload">
-                                    <Button className="cursor-pointer">
-                                        Choose Files
-                                    </Button>
-                                </label>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                <Brain className="w-4 h-4" />
+                                <span>Document Analysis</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveSection('generate')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === 'generate'
+                                    ? 'bg-white text-slate-900 shadow'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                            >
+                                <FileEdit className="w-4 h-4" />
+                                <span>Document Generation</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveSection('translate')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === 'translate'
+                                    ? 'bg-white text-slate-900 shadow'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                            >
+                                <Languages className="w-4 h-4" />
+                                <span>Document Translation</span>
+                            </button>
+                        </div>
+                    </div>
 
-                    {/* Documents List */}
-                    <div className="space-y-4">
-                        {documents.map((doc) => (
-                            <Card key={doc.id} className="overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-4">
-                                            <div className="bg-slate-100 p-3 rounded-lg">
-                                                <FileText className="w-6 h-6 text-slate-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900">{doc.name}</h3>
-                                                <p className="text-sm text-slate-500">
-                                                    {doc.type} • {doc.size} • {doc.uploadDate.toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <Badge
-                                                variant={
-                                                    doc.status === 'completed' ? 'default' :
-                                                        doc.status === 'processing' ? 'secondary' : 'destructive'
-                                                }
-                                            >
-                                                {doc.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                                                {doc.status === 'processing' && <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-slate-400 border-t-slate-600" />}
-                                                {doc.status === 'error' && <AlertTriangle className="w-3 h-3 mr-1" />}
-                                                {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                                            </Badge>
-                                            <Button variant="ghost" size="sm">
-                                                <Eye className="w-4 h-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="sm">
-                                                <Download className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => deleteDocument(doc.id)}
-                                                className="text-red-600 hover:text-red-700"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
+                    {activeSection === 'analyze' && (
+                        <div className="space-y-6">
+                            {/* Upload Area */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Upload Documents for Analysis</CardTitle>
+                                    <CardDescription>
+                                        Upload PDF legal documents to get AI-powered analysis and insights.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div
+                                        {...getAnalyzeRootProps()}
+                                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isAnalyzeDragActive
+                                            ? 'border-sky-400 bg-sky-50'
+                                            : 'border-slate-300 hover:border-slate-400'
+                                            } ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <input {...getAnalyzeInputProps()} />
+                                        <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                                        <p className="text-lg font-medium text-slate-700 mb-2">
+                                            {isAnalyzeDragActive ? 'Drop your PDF files here' : 'Drop your PDF documents here'}
+                                        </p>
+                                        <p className="text-slate-500 mb-4">
+                                            or click to browse from your device
+                                        </p>
+                                        <Button disabled={isAnalyzing}>
+                                            {isAnalyzing ? 'Analyzing...' : 'Choose PDF Files'}
+                                        </Button>
                                     </div>
-
-                                    {/* Analysis Results */}
-                                    {doc.status === 'completed' && doc.analysis && (
-                                        <div className="mt-6 pt-6 border-t border-slate-200">
-                                            <h4 className="font-semibold text-slate-900 mb-4">AI Analysis Results</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <div>
-                                                    <h5 className="font-medium text-slate-700 mb-2">Key Points</h5>
-                                                    <ul className="space-y-1 text-sm text-slate-600">
-                                                        {doc.analysis.keyPoints.map((point, index) => (
-                                                            <li key={index} className="flex items-start">
-                                                                <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                                                                {point}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                                <div>
-                                                    <h5 className="font-medium text-slate-700 mb-2">Legal Concerns</h5>
-                                                    <ul className="space-y-1 text-sm text-slate-600">
-                                                        {doc.analysis.legalConcerns.map((concern, index) => (
-                                                            <li key={index} className="flex items-start">
-                                                                <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
-                                                                {concern}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                                <div>
-                                                    <h5 className="font-medium text-slate-700 mb-2">Recommendations</h5>
-                                                    <ul className="space-y-1 text-sm text-slate-600">
-                                                        {doc.analysis.recommendations.map((rec, index) => (
-                                                            <li key={index} className="flex items-start">
-                                                                <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-                                                                {rec}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                 </CardContent>
                             </Card>
-                        ))}
-                    </div>
 
-                    {documents.length === 0 && (
-                        <Card>
-                            <CardContent className="p-12 text-center">
-                                <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-slate-700 mb-2">No documents uploaded</h3>
-                                <p className="text-slate-500">Upload your first document to get started with AI analysis</p>
-                            </CardContent>
-                        </Card>
+                            {/* Analyzed Documents */}
+                            <div className="space-y-4">
+                                {analyzedDocs.map((doc) => (
+                                    <Card key={doc.id} className="overflow-hidden">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="bg-slate-100 p-3 rounded-lg">
+                                                        <FileText className="w-6 h-6 text-slate-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-slate-900">{doc.name}</h3>
+                                                        <p className="text-sm text-slate-500">
+                                                            {doc.type} • {doc.size} • {doc.uploadDate.toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Badge
+                                                        variant={
+                                                            doc.status === 'completed' ? 'default' :
+                                                                doc.status === 'processing' ? 'secondary' : 'destructive'
+                                                        }
+                                                    >
+                                                        {doc.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                                        {doc.status === 'processing' && <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-slate-400 border-t-slate-600" />}
+                                                        {doc.status === 'error' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                                                        {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                                    </Badge>
+                                                    {doc.documentUrl && (
+                                                        <Button variant="ghost" size="sm" asChild>
+                                                            <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
+                                                                <Eye className="w-4 h-4" />
+                                                            </a>
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => deleteAnalyzedDoc(doc.id)}
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Analysis Results */}
+                                            {doc.status === 'completed' && doc.analysis && (
+                                                <div className="mt-6 pt-6 border-t border-slate-200">
+                                                    <h4 className="font-semibold text-slate-900 mb-4">AI Analysis Results</h4>
+
+                                                    {/* Summary */}
+                                                    <div className="mb-6">
+                                                        <h5 className="font-medium text-slate-700 mb-2">Document Summary</h5>
+                                                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                                                            {doc.analysis.summary}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                        <div>
+                                                            <h5 className="font-medium text-slate-700 mb-2">Key Points</h5>
+                                                            <ul className="space-y-1 text-sm text-slate-600">
+                                                                {doc.analysis.keyPoints.map((point, index) => (
+                                                                    <li key={index} className="flex items-start">
+                                                                        <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                                                        {point}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="font-medium text-slate-700 mb-2">Legal Concerns</h5>
+                                                            <ul className="space-y-1 text-sm text-slate-600">
+                                                                {doc.analysis.legalConcerns.map((concern, index) => (
+                                                                    <li key={index} className="flex items-start">
+                                                                        <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                                                                        {concern}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="font-medium text-slate-700 mb-2">Recommendations</h5>
+                                                            <ul className="space-y-1 text-sm text-slate-600">
+                                                                {doc.analysis.recommendations.map((rec, index) => (
+                                                                    <li key={index} className="flex items-start">
+                                                                        <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                                                                        {rec}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {analyzedDocs.length === 0 && (
+                                <Card>
+                                    <CardContent className="p-12 text-center">
+                                        <Brain className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-slate-700 mb-2">No documents analyzed yet</h3>
+                                        <p className="text-slate-500">Upload your first PDF document to get AI-powered analysis</p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {activeSection === 'generate' && (
+                        <div className="space-y-6">
+                            {/* Document Generation Form */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Generate Legal Document</CardTitle>
+                                    <CardDescription>
+                                        Use AI to generate professional legal documents based on your requirements
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="docType">Document Type</Label>
+                                            <Select value={docType} onValueChange={setDocType}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select document type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {documentTypes.map((type) => (
+                                                        <SelectItem key={type.value} value={type.value}>
+                                                            {type.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="docTitle">Document Title</Label>
+                                            <Input
+                                                id="docTitle"
+                                                placeholder="Enter document title"
+                                                value={docTitle}
+                                                onChange={(e) => setDocTitle(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="docDescription">Description & Requirements</Label>
+                                        <Textarea
+                                            id="docDescription"
+                                            placeholder="Describe the document requirements, parties involved, terms, conditions, etc."
+                                            value={docDescription}
+                                            onChange={(e) => setDocDescription(e.target.value)}
+                                            rows={4}
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={generateDocument}
+                                        disabled={isGenerating || !docType || !docTitle || !docDescription}
+                                        className="w-full"
+                                    >
+                                        {isGenerating ? 'Generating Document...' : 'Generate Document'}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* Generated Documents */}
+                            <div className="space-y-4">
+                                {generatedDocs.map((doc) => (
+                                    <Card key={doc.id} className="overflow-hidden">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="bg-slate-100 p-3 rounded-lg">
+                                                        <FileEdit className="w-6 h-6 text-slate-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-slate-900">{doc.title}</h3>
+                                                        <p className="text-sm text-slate-500">
+                                                            {documentTypes.find(t => t.value === doc.type)?.label} • {doc.createdDate.toLocaleDateString()}
+                                                        </p>
+                                                        <p className="text-xs text-slate-400 mt-1">{doc.description}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Badge
+                                                        variant={
+                                                            doc.status === 'completed' ? 'default' :
+                                                                doc.status === 'generating' ? 'secondary' : 'destructive'
+                                                        }
+                                                    >
+                                                        {doc.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                                        {doc.status === 'generating' && <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-slate-400 border-t-slate-600" />}
+                                                        {doc.status === 'error' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                                                        {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                                    </Badge>
+                                                    {doc.status === 'completed' && (
+                                                        <>
+                                                            {doc.isEditing ? (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => saveDocContent(doc.id)}
+                                                                        className="text-green-600 hover:text-green-700"
+                                                                    >
+                                                                        <Save className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => cancelEdit(doc.id)}
+                                                                        className="text-red-600 hover:text-red-700"
+                                                                    >
+                                                                        <X className="w-4 h-4" />
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => toggleEdit(doc.id)}
+                                                                >
+                                                                    <Edit3 className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => downloadAsPDF(doc.content, doc.title, 'generated')}
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => deleteGeneratedDoc(doc.id)}
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Generated Content */}
+                                            {doc.status === 'completed' && doc.content && (
+                                                <div className="mt-6 pt-6 border-t border-slate-200">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h4 className="font-semibold text-slate-900">Generated Document</h4>
+                                                    </div>
+
+                                                    {doc.isEditing ? (
+                                                        <Textarea
+                                                            value={doc.editedContent || doc.content}
+                                                            onChange={(e) => updateDocContent(doc.id, e.target.value)}
+                                                            className="min-h-96 font-mono text-sm"
+                                                            placeholder="Edit your document content here..."
+                                                        />
+                                                    ) : (
+                                                        <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
+                                                            <div className="text-sm text-slate-700">
+                                                                {renderFormattedText(doc.content)}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {generatedDocs.length === 0 && (
+                                <Card>
+                                    <CardContent className="p-12 text-center">
+                                        <FileEdit className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-slate-700 mb-2">No documents generated yet</h3>
+                                        <p className="text-slate-500">Fill in the form above to generate your first AI legal document</p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {activeSection === 'translate' && (
+                        <div className="space-y-6">
+                            {/* Translation Setup */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Document Translation</CardTitle>
+                                    <CardDescription>
+                                        Upload PDF documents in foreign languages to translate them into your preferred language
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="targetLanguage">Target Language</Label>
+                                        <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select target language" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {languages.map((lang) => (
+                                                    <SelectItem key={lang.value} value={lang.value}>
+                                                        {lang.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Upload Area */}
+                                    <div
+                                        {...getTranslateRootProps()}
+                                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isTranslateDragActive
+                                            ? 'border-sky-400 bg-sky-50'
+                                            : 'border-slate-300 hover:border-slate-400'
+                                            } ${isTranslating || !targetLanguage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <input {...getTranslateInputProps()} />
+                                        <Languages className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                                        <p className="text-lg font-medium text-slate-700 mb-2">
+                                            {isTranslateDragActive ? 'Drop your PDF files here' : 'Drop your PDF documents here for translation'}
+                                        </p>
+                                        <p className="text-slate-500 mb-4">
+                                            {!targetLanguage ? 'Select a target language first' : 'or click to browse from your device'}
+                                        </p>
+                                        <Button disabled={isTranslating || !targetLanguage}>
+                                            {isTranslating ? 'Translating...' : 'Choose PDF Files'}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Translated Documents */}
+                            <div className="space-y-4">
+                                {translatedDocs.map((doc) => (
+                                    <Card key={doc.id} className="overflow-hidden">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="bg-slate-100 p-3 rounded-lg">
+                                                        <Languages className="w-6 h-6 text-slate-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-slate-900">{doc.name}</h3>
+                                                        <p className="text-sm text-slate-500">
+                                                            {doc.originalLanguage} → {languages.find(l => l.value === doc.targetLanguage)?.label} • {doc.uploadDate.toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Badge
+                                                        variant={
+                                                            doc.status === 'completed' ? 'default' :
+                                                                doc.status === 'processing' ? 'secondary' : 'destructive'
+                                                        }
+                                                    >
+                                                        {doc.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                                        {doc.status === 'processing' && <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-slate-400 border-t-slate-600" />}
+                                                        {doc.status === 'error' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                                                        {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                                    </Badge>
+                                                    {doc.status === 'completed' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated')}
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+                                                    {doc.documentUrl && (
+                                                        <Button variant="ghost" size="sm" asChild>
+                                                            <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
+                                                                <Eye className="w-4 h-4" />
+                                                            </a>
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => deleteTranslatedDoc(doc.id)}
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Translated Content */}
+                                            {doc.status === 'completed' && doc.translatedContent && (
+                                                <div className="mt-6 pt-6 border-t border-slate-200">
+                                                    <h4 className="font-semibold text-slate-900 mb-4">Translated Document</h4>
+                                                    <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
+                                                        <div className="text-sm text-slate-700">
+                                                            {renderFormattedText(doc.translatedContent)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {translatedDocs.length === 0 && (
+                                <Card>
+                                    <CardContent className="p-12 text-center">
+                                        <Languages className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-slate-700 mb-2">No documents translated yet</h3>
+                                        <p className="text-slate-500">Select a target language and upload your first PDF document for translation</p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
