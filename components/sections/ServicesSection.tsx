@@ -9,7 +9,7 @@ const ServicesSection = () => {
       description: 'Get instant answers to your legal questions with our advanced AI assistant trained on Indian law.',
       features: ['24/7 Availability', 'Multi-language Support', 'Case Law References'],
       gradient: 'from-blue-500 to-blue-600',
-      href: '#chatbot'
+      href: '/chatbot'
     },
     {
       icon: <Shield className="w-8 h-8" />,
@@ -17,7 +17,7 @@ const ServicesSection = () => {
       description: 'Secure video-based Know Your Customer verification for lawyers and clients with digital document validation.',
       features: ['Video Verification', 'Document Upload', 'Real-time Validation'],
       gradient: 'from-green-500 to-green-600',
-      href: '#vkyc'
+      href: '/profile'
     },
     {
       icon: <BookOpen className="w-8 h-8" />,
@@ -25,7 +25,7 @@ const ServicesSection = () => {
       description: 'Comprehensive database of Indian Constitution, IPC, CrPC, and landmark judgments with AI-powered search.',
       features: ['50,000+ Documents', 'Smart Search', 'AI Summaries'],
       gradient: 'from-purple-500 to-purple-600',
-      href: '#library'
+      href: '/library'
     },
     {
       icon: <Video className="w-8 h-8" />,
@@ -33,7 +33,7 @@ const ServicesSection = () => {
       description: 'Connect with verified advocates for secure video consultations with integrated scheduling and payments.',
       features: ['Verified Lawyers', 'Secure Calls', 'Easy Scheduling'],
       gradient: 'from-orange-500 to-orange-600',
-      href: '#consult'
+      href: '/consult'
     }
   ];
 

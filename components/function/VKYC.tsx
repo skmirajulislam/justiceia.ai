@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -264,12 +264,16 @@ const CameraModal = ({
 
 const VKYC = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { session, loading: authLoading } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showCamera, setShowCamera] = useState<string | false>(false);
     const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhotos>({});
+
+    // Check if this is an update request
+    const isUpdate = searchParams.get('update') === 'true';
 
     // Determine which form schema to use based on user role
     const isFullKYC = profile?.role && ['lawyer', 'barrister', 'government_official'].includes(profile.role);
@@ -324,8 +328,8 @@ const VKYC = () => {
                     vkyc_completed: profileData.vkyc_completed ?? undefined,
                 });
 
-                // Check if VKYC is already completed
-                if (profileData.vkyc_completed) {
+                // Only redirect if VKYC is completed AND this is NOT an update request
+                if (profileData.vkyc_completed && !isUpdate) {
                     router.push('/');
                     return;
                 }
@@ -354,7 +358,7 @@ const VKYC = () => {
         };
 
         checkAuth();
-    }, [session, authLoading, router, isFullKYC, fullForm, basicForm]);
+    }, [session, authLoading, router, isFullKYC, fullForm, basicForm, isUpdate]);
 
     const uploadPhotoToCloudinary = async (imageData: string, documentType: string): Promise<string | null> => {
         try {
@@ -510,7 +514,8 @@ const VKYC = () => {
                 body: JSON.stringify({
                     profileData,
                     documents,
-                    kycType: isFullKYC ? 'full' : 'basic'
+                    kycType: isFullKYC ? 'full' : 'basic',
+                    isUpdate: isUpdate
                 }),
             });
 
@@ -518,8 +523,10 @@ const VKYC = () => {
 
             if (response.ok) {
                 toast({
-                    title: "VKYC Completed!",
-                    description: "Your verification is complete. Welcome to the platform!",
+                    title: isUpdate ? "KYC Updated!" : "VKYC Completed!",
+                    description: isUpdate
+                        ? "Your KYC information has been updated successfully!"
+                        : "Your verification is complete. Welcome to the platform!",
                 });
 
                 // Redirect to platform after successful completion
@@ -564,12 +571,17 @@ const VKYC = () => {
                                 <span className="text-xl font-bold text-slate-900">JusticeIA.ai</span>
                             </div>
                             <CardTitle className="text-2xl">
-                                {isFullKYC ? 'Full KYC Verification' : 'Basic KYC Verification'}
+                                {isUpdate
+                                    ? `Update ${isFullKYC ? 'Full' : 'Basic'} KYC Information`
+                                    : `${isFullKYC ? 'Full' : 'Basic'} KYC Verification`
+                                }
                             </CardTitle>
                             <CardDescription>
-                                {isFullKYC
-                                    ? 'Complete your full verification with documents to access all legal services'
-                                    : 'Complete your basic verification to access legal services'
+                                {isUpdate
+                                    ? 'Update your KYC information and documents'
+                                    : isFullKYC
+                                        ? 'Complete your full verification with documents to access all legal services'
+                                        : 'Complete your basic verification to access legal services'
                                 }
                             </CardDescription>
                             {isFullKYC && (
@@ -577,6 +589,14 @@ const VKYC = () => {
                                     <AlertCircle className="w-4 h-4 text-blue-600" />
                                     <span className="text-sm text-blue-600">
                                         Full KYC required for {profile.role?.replace('_', ' ')} role
+                                    </span>
+                                </div>
+                            )}
+                            {isUpdate && profile.vkyc_completed && (
+                                <div className="flex items-center justify-center space-x-2 mt-2 p-2 bg-green-50 rounded-lg">
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm text-green-600">
+                                        Current KYC Status: Completed
                                     </span>
                                 </div>
                             )}
@@ -876,7 +896,10 @@ const VKYC = () => {
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
-                                            {isLoading ? "Completing VKYC..." : "Complete Full VKYC"}
+                                            {isLoading
+                                                ? (isUpdate ? "Updating KYC..." : "Completing VKYC...")
+                                                : (isUpdate ? "Update KYC Information" : "Complete Full VKYC")
+                                            }
                                         </Button>
                                     </form>
                                 </Form>
@@ -984,7 +1007,10 @@ const VKYC = () => {
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
-                                            {isLoading ? "Completing VKYC..." : "Complete Basic VKYC"}
+                                            {isLoading
+                                                ? (isUpdate ? "Updating KYC..." : "Completing VKYC...")
+                                                : (isUpdate ? "Update KYC Information" : "Complete Basic VKYC")
+                                            }
                                         </Button>
                                     </form>
                                 </Form>

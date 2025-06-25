@@ -4,10 +4,9 @@ import { Scale, Mail, Phone, MapPin, Twitter, Linkedin, Facebook } from 'lucide-
 const Footer = () => {
   const footerLinks = {
     Platform: [
-      { name: 'AI Chatbot', href: '#chatbot' },
-      { name: 'V-KYC Portal', href: '#vkyc' },
-      { name: 'Legal Library', href: '#library' },
-      { name: 'Video Consult', href: '#consult' }
+      { name: 'AI Chatbot', href: '/chatbot' },
+      { name: 'Legal Library', href: '/library' },
+      { name: 'Video Consult', href: '/consult' }
     ],
     Legal: [
       { name: 'Privacy Policy', href: '#privacy' },
@@ -30,9 +29,9 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { icon: <Twitter className="w-5 h-5" />, href: '#twitter', label: 'Twitter' },
-    { icon: <Linkedin className="w-5 h-5" />, href: '#linkedin', label: 'LinkedIn' },
-    { icon: <Facebook className="w-5 h-5" />, href: '#facebook', label: 'Facebook' }
+    { icon: <Twitter className="w-5 h-5" />, href: 'https://x.com/InnovateX8158', label: 'Twitter' },
+    { icon: <Linkedin className="w-5 h-5" />, href: ' https://www.linkedin.com/company/105014118', label: 'LinkedIn' },
+    { icon: <Facebook className="w-5 h-5" />, href: ' https://www.facebook.com/profile.php?id=61574101536875', label: 'Facebook' }
   ];
 
   return (

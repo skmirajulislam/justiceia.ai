@@ -164,7 +164,7 @@ const AuthForm = () => {
             <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
               <Scale className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">JusticeIA.ai</span>
+            <span className="text-xl font-bold text-slate-900">Justiceia.ai</span>
           </div>
           <CardTitle>Welcome</CardTitle>
           <CardDescription>Sign in to access legal services</CardDescription>
