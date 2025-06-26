@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle, Eye, Download, Trash2, FileEdit, Brain, Languages, Edit3, Save, X } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, CheckCircle, Download, Trash2, FileEdit, Brain, Languages, Edit3, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,7 @@ interface AnalyzedDocument {
     uploadDate: Date;
     status: 'processing' | 'completed' | 'error';
     analysis?: DocumentAnalysis;
-    documentUrl?: string;
+    fileContent?: string;
 }
 
 interface GeneratedDocument {
@@ -53,7 +53,7 @@ interface TranslatedDocument {
     translatedContent: string;
     uploadDate: Date;
     status: 'processing' | 'completed' | 'error';
-    documentUrl?: string;
+    fileContent?: string;
 }
 
 const DocumentProcessor = () => {
@@ -149,47 +149,23 @@ const DocumentProcessor = () => {
         });
     };
 
-    // Add this method after the uploadToCloudinary function
-    const uploadToCloudinary = async (file: File): Promise<string | null> => {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                return data.url;
-            } else {
-                // Handle specific error messages
-                if (response.status === 503) {
-                    toast({
-                        title: "Service Temporarily Unavailable",
-                        description: "File upload service is temporarily unavailable. Please try again later.",
-                        variant: "destructive",
-                    });
+    // Convert file to base64
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    resolve(reader.result.split(',')[1]); // Remove data:mime;base64, prefix
                 } else {
-                    toast({
-                        title: "Upload Failed",
-                        description: data.error || 'Failed to upload file. Please try again.',
-                        variant: "destructive",
-                    });
+                    reject(new Error('Failed to convert file to base64'));
                 }
-                throw new Error(data.error || 'Upload failed');
-            }
-        } catch (error) {
-            console.error('Upload error:', error);
-            return null;
-        }
+            };
+            reader.onerror = error => reject(error);
+        });
     };
 
-    // ...rest of existing code...
-
-    const analyzeDocument = async (documentUrl: string, fileName: string): Promise<DocumentAnalysis | null> => {
+    const analyzeDocument = async (fileContent: string, fileName: string): Promise<DocumentAnalysis | null> => {
         try {
             const response = await fetch('/api/documents/analyze', {
                 method: 'POST',
@@ -197,7 +173,7 @@ const DocumentProcessor = () => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    documentUrl,
+                    fileContent,
                     fileName,
                     apiKey
                 }),
@@ -242,15 +218,11 @@ const DocumentProcessor = () => {
             setAnalyzedDocs(prev => [newDoc, ...prev]);
 
             try {
-                // Upload to Cloudinary
-                const documentUrl = await uploadToCloudinary(file);
-
-                if (!documentUrl) {
-                    throw new Error('Failed to upload document');
-                }
+                // Convert file to base64
+                const fileContent = await fileToBase64(file);
 
                 // Analyze with AI
-                const analysis = await analyzeDocument(documentUrl, file.name);
+                const analysis = await analyzeDocument(fileContent, file.name);
 
                 if (analysis) {
                     setAnalyzedDocs(prev => prev.map(doc =>
@@ -259,7 +231,7 @@ const DocumentProcessor = () => {
                                 ...doc,
                                 status: 'completed',
                                 analysis,
-                                documentUrl
+                                fileContent
                             }
                             : doc
                     ));
@@ -325,12 +297,8 @@ const DocumentProcessor = () => {
             setTranslatedDocs(prev => [newDoc, ...prev]);
 
             try {
-                // Upload to Cloudinary
-                const documentUrl = await uploadToCloudinary(file);
-
-                if (!documentUrl) {
-                    throw new Error('Failed to upload document');
-                }
+                // Convert file to base64
+                const fileContent = await fileToBase64(file);
 
                 // Translate with AI
                 const response = await fetch('/api/documents/translate', {
@@ -339,7 +307,7 @@ const DocumentProcessor = () => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        documentUrl,
+                        fileContent,
                         fileName: file.name,
                         targetLanguage,
                         apiKey
@@ -356,7 +324,7 @@ const DocumentProcessor = () => {
                                 status: 'completed',
                                 translatedContent: data.translatedContent,
                                 originalLanguage: data.originalLanguage,
-                                documentUrl
+                                fileContent
                             }
                             : doc
                     ));
@@ -612,17 +580,17 @@ const DocumentProcessor = () => {
     const renderFormattedText = (text: string) => {
         const lines = text.split('\n');
         return lines.map((line, index) => {
-            // Handle bold text
-            const parts = line.split(/(\*\*.*?\*\*)/g);
+            // Handle bold text with **text** pattern
+            const parts = line.split(/(\*\*[^*]+\*\*)/g);
             const formattedLine = parts.map((part, partIndex) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
+                if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
                     return (
-                        <strong key={partIndex} className="font-bold">
+                        <strong key={partIndex} className="font-bold text-slate-900">
                             {part.slice(2, -2)}
                         </strong>
                     );
                 }
-                return part;
+                return <span key={partIndex}>{part}</span>;
             });
 
             return (
@@ -787,13 +755,6 @@ const DocumentProcessor = () => {
                                                         {doc.status === 'error' && <AlertTriangle className="w-3 h-3 mr-1" />}
                                                         {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
                                                     </Badge>
-                                                    {doc.documentUrl && (
-                                                        <Button variant="ghost" size="sm" asChild>
-                                                            <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
-                                                                <Eye className="w-4 h-4" />
-                                                            </a>
-                                                        </Button>
-                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -1135,13 +1096,6 @@ const DocumentProcessor = () => {
                                                             onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated')}
                                                         >
                                                             <Download className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
-                                                    {doc.documentUrl && (
-                                                        <Button variant="ghost" size="sm" asChild>
-                                                            <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
-                                                                <Eye className="w-4 h-4" />
-                                                            </a>
                                                         </Button>
                                                     )}
                                                     <Button

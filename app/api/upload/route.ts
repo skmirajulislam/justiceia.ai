@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
+import jwt from 'jsonwebtoken';
+import { prisma } from '@/integrations/client';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -10,6 +12,53 @@ cloudinary.config({
 
 export async function POST(request: NextRequest) {
     try {
+        // Check authentication using your custom JWT method
+        const token = request.cookies.get('auth-token')?.value;
+
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        // Verify JWT token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string };
+        } catch (error) {
+            return NextResponse.json(
+                { error: 'Invalid token' },
+                { status: 401 }
+            );
+        }
+
+        // Fetch user data from database
+        const profile = await prisma.profile.findUnique({
+            where: { id: decoded.userId },
+            select: {
+                id: true,
+                email: true,
+                vkyc_completed: true
+            }
+        });
+
+        if (!profile) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 401 }
+            );
+        }
+
+        // Create session-like object for compatibility
+        const session = {
+            user: {
+                id: profile.id,
+                email: profile.email,
+                vkyc_completed: profile.vkyc_completed
+            }
+        };
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
 
@@ -43,15 +92,15 @@ export async function POST(request: NextRequest) {
         const dataURI = `data:${file.type};base64,${base64}`;
 
         try {
-            // Upload to Cloudinary with specific options
+            // Upload to Cloudinary with user-specific folder
             const uploadResponse = await cloudinary.uploader.upload(dataURI, {
-                resource_type: 'raw', // Use 'raw' for PDFs
-                folder: 'legal-documents',
+                resource_type: 'raw',
+                folder: `legal-documents/${session.user.id}`,
                 use_filename: true,
                 unique_filename: true,
                 overwrite: false,
-                public_id: `pdf_${Date.now()}`,
-                access_mode: 'public', // Ensure public access
+                public_id: `legal_doc_${Date.now()}`,
+                access_mode: 'public',
                 delivery_type: 'upload',
                 flags: 'attachment'
             });
@@ -60,7 +109,8 @@ export async function POST(request: NextRequest) {
             const directUrl = cloudinary.url(uploadResponse.public_id, {
                 resource_type: 'raw',
                 type: 'upload',
-                secure: true
+                secure: true,
+                flags: 'attachment'
             });
 
             console.log('Upload successful:', {
@@ -70,7 +120,7 @@ export async function POST(request: NextRequest) {
             });
 
             return NextResponse.json({
-                url: directUrl, // Use direct URL instead of secure_url
+                url: directUrl,
                 public_id: uploadResponse.public_id,
                 secure_url: uploadResponse.secure_url,
                 success: true
@@ -79,7 +129,6 @@ export async function POST(request: NextRequest) {
         } catch (cloudinaryError: any) {
             console.error('Cloudinary upload error:', cloudinaryError);
 
-            // Handle specific Cloudinary errors
             if (cloudinaryError.message?.includes('untrusted')) {
                 return NextResponse.json(
                     { error: 'File upload service temporarily unavailable. Please try again later or contact support.' },

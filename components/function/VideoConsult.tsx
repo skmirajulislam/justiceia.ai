@@ -34,7 +34,7 @@ const VideoConsult = () => {
             location: 'Delhi',
             rate: 2500,
             available: true,
-            image: '/placeholder.svg',
+            image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSHZyIfA6cYuFzfnxOvmJDpeILslVNEPk4Bhyi',
             languages: ['Hindi', 'English']
         },
         {
@@ -46,7 +46,7 @@ const VideoConsult = () => {
             location: 'Mumbai',
             rate: 3000,
             available: true,
-            image: '/placeholder.svg',
+            image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSvTCesN3qYPZgjuhsNkzxMVdJeoCr3GIHcB5U',
             languages: ['Hindi', 'English', 'Marathi']
         },
         {
@@ -58,7 +58,7 @@ const VideoConsult = () => {
             location: 'Bangalore',
             rate: 2000,
             available: false,
-            image: '/placeholder.svg',
+            image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSmte3wDQWPqGBKui27bJUenZ3cHEOgpQY1tjv',
             languages: ['Hindi', 'English', 'Gujarati']
         },
         {
@@ -70,7 +70,7 @@ const VideoConsult = () => {
             location: 'Chennai',
             rate: 4000,
             available: true,
-            image: '/placeholder.svg',
+            image: 'https://rbo6om9l82.ufs.sh/f/or07poavtUuSAuqWAA8tarEUqGVQDh4KJmBTcS0Oey5glLPd',
             languages: ['Hindi', 'English', 'Tamil']
         }
     ];

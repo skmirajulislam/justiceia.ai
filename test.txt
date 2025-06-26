@@ -2,7 +2,8 @@
 npx prisma generate
 
 # Push the schema to your database
-npx prisma db push
+dotenv -e .env.local -- npx prisma migrate dev --name add-cloudinary-public-id
+
 
 # Or run migrations if you prefer
 npx prisma migrate dev --name init

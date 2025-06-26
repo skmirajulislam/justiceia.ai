@@ -4,11 +4,11 @@ import { extractPDFText, extractPDFTextAdvanced } from '@/lib/pdfExtractor';
 
 export async function POST(req: NextRequest) {
     try {
-        const { documentUrl, fileName, targetLanguage, apiKey } = await req.json();
+        const { fileContent, fileName, targetLanguage, apiKey } = await req.json();
 
-        if (!documentUrl || !targetLanguage || !apiKey) {
+        if (!fileContent || !targetLanguage || !apiKey) {
             return NextResponse.json(
-                { error: 'Document URL, target language, and API key are required' },
+                { error: 'File content, target language, and API key are required' },
                 { status: 400 }
             );
         }
@@ -16,24 +16,15 @@ export async function POST(req: NextRequest) {
         // Extract text from PDF
         let documentText = '';
         try {
-            console.log('Fetching document from:', documentUrl);
+            console.log('Processing PDF file for translation:', fileName);
 
-            const response = await fetch(documentUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/pdf, */*',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Cache-Control': 'no-cache'
-                }
-            });
-
-            console.log('Response status:', response.status, response.statusText);
-
-            if (response.status < 200 || response.status >= 300) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Convert base64 to ArrayBuffer
+            const binaryString = atob(fileContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
             }
-
-            const arrayBuffer = await response.arrayBuffer();
+            const arrayBuffer = bytes.buffer;
 
             if (arrayBuffer.byteLength === 0) {
                 throw new Error('Empty PDF file received');

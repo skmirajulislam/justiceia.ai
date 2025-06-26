@@ -14,30 +14,39 @@ datasource db {
 model Profile {
   id              String   @id @default(uuid())
   address         String?
-  created_at      DateTime?
+  created_at      DateTime @default(now())
   email           String?  @unique
   password        String? 
   first_name      String?
   last_name       String?
   phone           String?
   role            String?
-  updated_at      DateTime?
-  vkyc_completed  Boolean?
+  updated_at      DateTime @default(now()) @updatedAt
+  vkyc_completed  Boolean  @default(false)
   vkyc_completed_at DateTime?
   reports         Report[]
   vkycDocuments   VkycDocument[]
 }
 
 model Report {
-  id          String   @id @default(uuid())
-  user_id     String
-  title       String
-  category    String
-  description String?
-  pdf_url     String
-  created_at  DateTime? @default(now())
-  profile     Profile  @relation(fields: [user_id], references: [id])
+  id                    String   @id @default(cuid())
+  user_id               String
+  title                 String
+  category              String
+  description           String?
+  pdf_url               String
+  cloudinary_public_id  String?  // Add this line
+  tags                  String[]
+  date                  DateTime?
+  court                 String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  profile Profile @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("Report")
 }
+
 
 model VkycDocument {
   id            String   @id @default(uuid())

@@ -1,16 +1,18 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Upload, Loader2, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { FileText, Upload, Loader2, Trash2, Eye, Calendar, Scale, Tag, Plus, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfileAction } from '@/lib/database-actions';
@@ -20,6 +22,8 @@ const formSchema = z.object({
     title: z.string().min(5, "Title must be at least 5 characters."),
     category: z.string().min(1, "Please select a category."),
     description: z.string().optional(),
+    court: z.string().optional(),
+    date: z.string().optional(),
 });
 
 const LEGAL_CATEGORIES = [
@@ -44,6 +48,10 @@ interface Report {
     category: string;
     description?: string;
     pdf_url: string;
+    cloudinary_public_id?: string;
+    court?: string;
+    date?: string;
+    tags: string[];
     created_at: string;
 }
 
@@ -56,6 +64,9 @@ const PublishReport = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [reports, setReports] = useState<Report[]>([]);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [tags, setTags] = useState<string[]>([]);
+    const [newTag, setNewTag] = useState('');
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -63,7 +74,48 @@ const PublishReport = () => {
             title: '',
             category: '',
             description: '',
+            court: '',
+            date: '',
         },
+    });
+
+    // Dropzone configuration
+    const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+        if (rejectedFiles.length > 0) {
+            const rejection = rejectedFiles[0];
+            if (rejection.errors.some((e: any) => e.code === 'file-invalid-type')) {
+                toast({
+                    title: "Invalid File Type",
+                    description: "Please select a PDF file.",
+                    variant: "destructive",
+                });
+            } else if (rejection.errors.some((e: any) => e.code === 'file-too-large')) {
+                toast({
+                    title: "File Too Large",
+                    description: "Please select a file smaller than 10MB.",
+                    variant: "destructive",
+                });
+            }
+            return;
+        }
+
+        if (acceptedFiles.length > 0) {
+            const file = acceptedFiles[0];
+            setSelectedFile(file);
+            toast({
+                title: "File Selected",
+                description: `${file.name} is ready for upload.`,
+            });
+        }
+    }, [toast]);
+
+    const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
+        onDrop,
+        accept: {
+            'application/pdf': ['.pdf']
+        },
+        maxSize: 10 * 1024 * 1024, // 10MB
+        multiple: false
     });
 
     useEffect(() => {
@@ -85,13 +137,11 @@ const PublishReport = () => {
 
                 setProfile(profileData);
 
-                // Check if user has completed VKYC
                 if (!profileData.vkyc_completed) {
                     router.push('/vkyc');
                     return;
                 }
 
-                // Check if user has the right role
                 if (!['lawyer', 'barrister', 'government_official'].includes(profileData.role ?? '')) {
                     toast({
                         title: "Access Denied",
@@ -102,7 +152,6 @@ const PublishReport = () => {
                     return;
                 }
 
-                // Fetch user's reports
                 await fetchReports();
             } catch (error) {
                 console.error('Auth check error:', error);
@@ -114,44 +163,85 @@ const PublishReport = () => {
     }, [session, loading, router, toast]);
 
     const fetchReports = async () => {
+        if (!session) return;
+
         try {
-            const response = await fetch('/api/reports');
-            const data = await response.json();
+            const response = await fetch(`/api/reports?userId=${session.user.id}`);
 
             if (response.ok) {
+                const data = await response.json();
                 setReports(data.reports || []);
             } else {
-                console.error('Error fetching reports:', data.error);
+                console.warn('Unable to fetch reports:', response.status);
+                setReports([]);
             }
         } catch (error) {
             console.error('Error fetching reports:', error);
+            setReports([]);
         }
     };
 
-    const uploadPDF = async (file: File): Promise<string | null> => {
+    const uploadPDF = async (file: File): Promise<{ url: string, publicId: string } | null> => {
         setIsUploading(true);
+        setUploadProgress(0);
+
         try {
             const formData = new FormData();
             formData.append('file', file);
+
+            // Simulate upload progress (since we can't track real progress with fetch)
+            const progressInterval = setInterval(() => {
+                setUploadProgress(prev => {
+                    if (prev >= 90) {
+                        clearInterval(progressInterval);
+                        return 90;
+                    }
+                    return prev + 10;
+                });
+            }, 200);
 
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData,
             });
 
+            clearInterval(progressInterval);
+            setUploadProgress(100);
+
             const data = await response.json();
 
             if (response.ok) {
-                return data.url;
+                return {
+                    url: data.url,
+                    publicId: data.public_id
+                };
             } else {
                 throw new Error(data.error || 'Upload failed');
             }
         } catch (error) {
             console.error('Upload error:', error);
+            setUploadProgress(0);
             return null;
         } finally {
             setIsUploading(false);
+            setTimeout(() => setUploadProgress(0), 1000);
         }
+    };
+
+    const addTag = () => {
+        if (newTag.trim() && !tags.includes(newTag.trim())) {
+            setTags([...tags, newTag.trim()]);
+            setNewTag('');
+        }
+    };
+
+    const removeTag = (tagToRemove: string) => {
+        setTags(tags.filter(tag => tag !== tagToRemove));
+    };
+
+    const removeSelectedFile = () => {
+        setSelectedFile(null);
+        setUploadProgress(0);
     };
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -160,14 +250,12 @@ const PublishReport = () => {
         setIsLoading(true);
 
         try {
-            // Upload PDF file to Cloudinary
-            const pdfUrl = await uploadPDF(selectedFile);
+            const uploadResult = await uploadPDF(selectedFile);
 
-            if (!pdfUrl) {
+            if (!uploadResult) {
                 throw new Error('Failed to upload PDF file');
             }
 
-            // Save report to database
             const response = await fetch('/api/reports', {
                 method: 'POST',
                 headers: {
@@ -177,7 +265,11 @@ const PublishReport = () => {
                     title: values.title,
                     category: values.category,
                     description: values.description,
-                    pdf_url: pdfUrl
+                    court: values.court,
+                    date: values.date,
+                    pdf_url: uploadResult.url,
+                    cloudinary_public_id: uploadResult.publicId,
+                    tags: tags
                 }),
             });
 
@@ -192,9 +284,10 @@ const PublishReport = () => {
                 description: "Your legal report has been published successfully.",
             });
 
-            // Reset form and refresh reports
             form.reset();
             setSelectedFile(null);
+            setTags([]);
+            setUploadProgress(0);
             await fetchReports();
 
         } catch (error: any) {
@@ -209,40 +302,14 @@ const PublishReport = () => {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.type !== 'application/pdf') {
-                toast({
-                    title: "Invalid File Type",
-                    description: "Please select a PDF file.",
-                    variant: "destructive",
-                });
-                return;
-            }
-
-            // Check file size (limit to 10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                toast({
-                    title: "File Too Large",
-                    description: "Please select a file smaller than 10MB.",
-                    variant: "destructive",
-                });
-                return;
-            }
-
-            setSelectedFile(file);
-        }
-    };
-
-    const deleteReport = async (reportId: string, pdfUrl: string) => {
+    const deleteReport = async (reportId: string, cloudinaryPublicId?: string) => {
         try {
-            // Extract public ID from Cloudinary URL
-            const urlParts = pdfUrl.split('/');
-            const publicIdWithExt = urlParts[urlParts.length - 1];
-            const publicId = `legal-reports/${session?.user.id}/${publicIdWithExt}`;
+            const params = new URLSearchParams({
+                id: reportId,
+                ...(cloudinaryPublicId && { publicId: cloudinaryPublicId })
+            });
 
-            const response = await fetch(`/api/reports?id=${reportId}&publicId=${encodeURIComponent(publicId)}`, {
+            const response = await fetch(`/api/reports?${params}`, {
                 method: 'DELETE',
             });
 
@@ -268,6 +335,18 @@ const PublishReport = () => {
         }
     };
 
+    const viewPDF = (url: string) => {
+        window.open(url, '_blank');
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     if (loading || !session || !profile) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
@@ -284,6 +363,11 @@ const PublishReport = () => {
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold text-slate-900">Publish Legal Report</h1>
                         <p className="text-slate-600 mt-2">Share your legal expertise with the community</p>
+                        <div className="mt-4 p-4 bg-sky-50 rounded-lg">
+                            <p className="text-sm text-sky-700">
+                                <strong>Total Published Reports:</strong> {reports.length}
+                            </p>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -295,7 +379,7 @@ const PublishReport = () => {
                                     <span>New Report</span>
                                 </CardTitle>
                                 <CardDescription>
-                                    Upload a new legal report to share
+                                    Upload a new legal report to share with the community
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -340,6 +424,36 @@ const PublishReport = () => {
                                             )}
                                         />
 
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="court"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Court (Optional)</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="e.g., Supreme Court of India" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name="date"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Case Date (Optional)</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="date" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
                                         <FormField
                                             control={form.control}
                                             name="description"
@@ -358,47 +472,127 @@ const PublishReport = () => {
                                             )}
                                         />
 
+                                        {/* Tags Section */}
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Tags (Optional)</label>
+                                            <div className="flex space-x-2">
+                                                <Input
+                                                    placeholder="Add a tag"
+                                                    value={newTag}
+                                                    onChange={(e) => setNewTag(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                                />
+                                                <Button type="button" variant="outline" onClick={addTag}>
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                            {tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {tags.map((tag, index) => (
+                                                        <Badge key={index} variant="secondary" className="text-xs">
+                                                            {tag}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeTag(tag)}
+                                                                className="ml-1 hover:text-red-600"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Enhanced File Upload with Dropzone */}
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">PDF File</label>
-                                            <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
-                                                {selectedFile ? (
-                                                    <div className="space-y-2">
-                                                        <FileText className="w-12 h-12 mx-auto text-green-500" />
-                                                        <p className="text-sm font-medium text-green-600">{selectedFile.name}</p>
-                                                        <p className="text-xs text-slate-500">
-                                                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                                                        </p>
+
+                                            {!selectedFile ? (
+                                                <div
+                                                    {...getRootProps()}
+                                                    className={`
+                                                        border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200
+                                                        ${isDragActive && !isDragReject ? 'border-sky-400 bg-sky-50' : ''}
+                                                        ${isDragReject ? 'border-red-400 bg-red-50' : ''}
+                                                        ${!isDragActive ? 'border-gray-300 hover:border-sky-400 hover:bg-sky-50' : ''}
+                                                    `}
+                                                >
+                                                    <input {...getInputProps()} />
+                                                    <div className="space-y-4">
+                                                        {isDragReject ? (
+                                                            <AlertCircle className="w-12 h-12 mx-auto text-red-400" />
+                                                        ) : (
+                                                            <Upload className={`w-12 h-12 mx-auto ${isDragActive ? 'text-sky-500' : 'text-slate-400'}`} />
+                                                        )}
+
+                                                        <div>
+                                                            <p className={`text-lg font-medium ${isDragReject ? 'text-red-600' : isDragActive ? 'text-sky-600' : 'text-slate-600'}`}>
+                                                                {isDragReject
+                                                                    ? 'Invalid file type or size'
+                                                                    : isDragActive
+                                                                        ? 'Drop your PDF file here'
+                                                                        : 'Drag & drop your PDF file here'
+                                                                }
+                                                            </p>
+                                                            <p className="text-sm text-slate-500 mt-2">
+                                                                or click to browse files
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="text-xs text-slate-400 space-y-1">
+                                                            <p>• PDF files only</p>
+                                                            <p>• Maximum file size: 10MB</p>
+                                                            <p>• High-quality documents recommended</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="border border-green-200 bg-green-50 rounded-lg p-6">
+                                                    <div className="flex items-start space-x-4">
+                                                        <div className="flex-shrink-0">
+                                                            <CheckCircle className="w-8 h-8 text-green-500" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-medium text-green-800">
+                                                                File Ready for Upload
+                                                            </h4>
+                                                            <p className="text-sm text-green-700 mt-1 break-all">
+                                                                {selectedFile.name}
+                                                            </p>
+                                                            <p className="text-xs text-green-600 mt-1">
+                                                                Size: {formatFileSize(selectedFile.size)}
+                                                            </p>
+
+                                                            {/* Upload Progress */}
+                                                            {isUploading && (
+                                                                <div className="mt-3">
+                                                                    <div className="flex justify-between text-xs text-green-600 mb-1">
+                                                                        <span>Uploading...</span>
+                                                                        <span>{uploadProgress}%</span>
+                                                                    </div>
+                                                                    <div className="w-full bg-green-200 rounded-full h-2">
+                                                                        <div
+                                                                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                                                            style={{ width: `${uploadProgress}%` }}
+                                                                        ></div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         <Button
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => setSelectedFile(null)}
+                                                            onClick={removeSelectedFile}
+                                                            disabled={isUploading}
+                                                            className="flex-shrink-0"
                                                         >
-                                                            Remove File
+                                                            <X className="w-4 h-4" />
                                                         </Button>
                                                     </div>
-                                                ) : (
-                                                    <div className="space-y-2">
-                                                        <Upload className="w-12 h-12 mx-auto text-slate-400" />
-                                                        <div>
-                                                            <label className="cursor-pointer">
-                                                                <input
-                                                                    type="file"
-                                                                    accept=".pdf"
-                                                                    onChange={handleFileChange}
-                                                                    className="hidden"
-                                                                />
-                                                                <Button type="button" variant="outline">
-                                                                    Choose PDF File
-                                                                </Button>
-                                                            </label>
-                                                        </div>
-                                                        <p className="text-xs text-slate-500">
-                                                            Upload your legal report in PDF format (Max 10MB)
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <Button
@@ -414,7 +608,7 @@ const PublishReport = () => {
                                             ) : isUploading ? (
                                                 <>
                                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Uploading...
+                                                    Uploading... {uploadProgress}%
                                                 </>
                                             ) : (
                                                 "Publish Report"
@@ -428,12 +622,12 @@ const PublishReport = () => {
                         {/* Published Reports */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Your Published Reports</CardTitle>
+                                <CardTitle>Your Published Reports ({reports.length})</CardTitle>
                                 <CardDescription>
                                     Manage your published legal reports
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="max-h-96 overflow-y-auto">
                                 {reports.length === 0 ? (
                                     <div className="text-center py-8">
                                         <FileText className="w-12 h-12 mx-auto text-slate-300 mb-4" />
@@ -444,36 +638,67 @@ const PublishReport = () => {
                                         {reports.map((report) => (
                                             <div key={report.id} className="border border-slate-200 rounded-lg p-4">
                                                 <div className="flex justify-between items-start">
-                                                    <div className="flex-1">
-                                                        <h3 className="font-medium text-slate-900">{report.title}</h3>
-                                                        <p className="text-sm text-slate-600 mt-1">{report.category}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-medium text-slate-900 truncate">{report.title}</h3>
+                                                        <div className="flex items-center space-x-2 mt-1">
+                                                            <Badge variant="outline" className="text-xs">{report.category}</Badge>
+                                                            {report.court && (
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    <Scale className="w-3 h-3 mr-1" />
+                                                                    {report.court}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                         {report.description && (
                                                             <p className="text-sm text-slate-500 mt-2 line-clamp-2">
                                                                 {report.description}
                                                             </p>
                                                         )}
-                                                        <div className="flex items-center space-x-4 mt-3">
-                                                            <span className="text-xs text-slate-400">
-                                                                {new Date(report.created_at).toLocaleDateString()}
-                                                            </span>
-                                                            <a
-                                                                href={report.pdf_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-xs text-sky-500 hover:underline"
-                                                            >
-                                                                View PDF
-                                                            </a>
+                                                        {report.tags && report.tags.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                                {report.tags.slice(0, 3).map((tag, index) => (
+                                                                    <Badge key={index} variant="secondary" className="text-xs">
+                                                                        <Tag className="w-3 h-3 mr-1" />
+                                                                        {tag}
+                                                                    </Badge>
+                                                                ))}
+                                                                {report.tags.length > 3 && (
+                                                                    <Badge variant="secondary" className="text-xs">
+                                                                        +{report.tags.length - 3} more
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center justify-between mt-3">
+                                                            <div className="flex items-center space-x-4">
+                                                                <span className="text-xs text-slate-400">
+                                                                    <Calendar className="w-3 h-3 inline mr-1" />
+                                                                    {new Date(report.created_at).toLocaleDateString()}
+                                                                </span>
+                                                                {report.date && (
+                                                                    <span className="text-xs text-slate-400">
+                                                                        Case: {new Date(report.date).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex space-x-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => viewPDF(report.pdf_url)}
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={() => deleteReport(report.id, report.cloudinary_public_id)}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        onClick={() => deleteReport(report.id, report.pdf_url)}
-                                                        className="ml-4"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}
