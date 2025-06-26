@@ -22,7 +22,7 @@ const Footer = () => {
     ],
     Company: [
       { name: 'About Us', href: '#about' },
-      { name: 'Careers', href: '#careers' },
+     { name: 'Careers', href: '#careers' },
       { name: 'Press', href: '#press' },
       { name: 'Blog', href: '#blog' }
     ]
@@ -56,15 +56,15 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-slate-400">
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4" />
-                <span>contact@advocate.ai</span>
+                <span>arnabdas9575@gmail.com</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="w-4 h-4" />
-                <span>+91 98765 43210</span>
+                <span>+91 62897 90425</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4" />
-                <span>New Delhi, India</span>
+                <span>Kolkata, India</span>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ const Footer = () => {
               <h3 className="text-lg font-semibold mb-2">Stay Updated</h3>
               <p className="text-slate-400">Get the latest legal tech insights and platform updates.</p>
             </div>
-            <div className="flex space-x-4">
+            {/* <div className="flex space-x-4">
               <input
                 type="email"
                 placeholder="Enter your email"
@@ -105,7 +105,7 @@ const Footer = () => {
               <button className="bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200">
                 Subscribe
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
