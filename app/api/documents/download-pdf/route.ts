@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
                 doc.setFontSize(11);
                 yPosition += 3;
 
-                const headerLines = doc.splitTextToSize(element.text, maxWidth);
+                const headerLines = doc.splitTextToSize(element.text || '', maxWidth);
                 headerLines.forEach((line: string) => {
                     if (yPosition > pageHeight - 30) {
                         doc.addPage();
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                 doc.setFont('times', 'normal');
                 doc.setFontSize(10);
 
-                const paragraphLines = doc.splitTextToSize(element.text, maxWidth);
+                const paragraphLines = doc.splitTextToSize(element.text || '', maxWidth);
                 paragraphLines.forEach((line: string) => {
                     if (yPosition > pageHeight - 30) {
                         doc.addPage();
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
                 let hasBoldParts = false;
 
                 // Check if we have bold parts to determine rendering method
-                for (const part of element.parts) {
+                for (const part of element.parts || []) {
                     if (part.bold) {
                         hasBoldParts = true;
                         break;
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
                     let currentX = margin;
                     let lineText = '';
 
-                    for (const part of element.parts) {
+                    for (const part of element.parts || []) {
                         if (currentY > pageHeight - 30) {
                             doc.addPage();
                             currentY = margin;
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
                     yPosition = currentY + lineHeight + 3;
                 } else {
                     // For content without bold, use simple text splitting
-                    combinedText = element.parts.map(p => p.text).join(' ');
+                    combinedText = (element.parts || []).map(p => p.text).join(' ');
                     doc.setFont('times', 'normal');
                     const textLines = doc.splitTextToSize(combinedText, maxWidth);
 
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
                 doc.text('•', margin, yPosition);
 
                 // Add bullet text with proper indentation and wrapping
-                const bulletLines = doc.splitTextToSize(element.text, maxWidth - bulletIndent);
+                const bulletLines = doc.splitTextToSize(element.text || '', maxWidth - bulletIndent);
                 bulletLines.forEach((line: string, index: number) => {
                     if (yPosition > pageHeight - 30) {
                         doc.addPage();
@@ -249,8 +249,8 @@ export async function POST(request: NextRequest) {
  */
 function cleanContent(content: string): string {
     return content
-        .replace(/<script[^>]*>.*?<\/script>/gis, '')
-        .replace(/<style[^>]*>.*?<\/style>/gis, '')
+        .replace(/<script[^>]*>.*?<\/script>/gi, '')
+        .replace(/<style[^>]*>.*?<\/style>/gi, '')
         .replace(/<[^>]*>/g, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')

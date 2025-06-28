@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -264,7 +264,6 @@ const CameraModal = ({
 
 const VKYC = () => {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { session, loading: authLoading } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -272,11 +271,8 @@ const VKYC = () => {
     const [showCamera, setShowCamera] = useState<string | false>(false);
     const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhotos>({});
 
-    // Check if this is an update request
-    const isUpdate = searchParams.get('update') === 'true';
-
     // Determine which form schema to use based on user role
-    const isFullKYC = profile?.role && ['lawyer', 'barrister', 'government_official'].includes(profile.role);
+    const isFullKYC = profile?.role && ['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(profile.role);
 
     const basicForm = useForm<BasicFormData>({
         resolver: zodResolver(basicFormSchema),
@@ -298,8 +294,6 @@ const VKYC = () => {
             address: '',
         },
     });
-
-    const form = isFullKYC ? fullForm : basicForm;
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -328,8 +322,8 @@ const VKYC = () => {
                     vkyc_completed: profileData.vkyc_completed ?? undefined,
                 });
 
-                // Only redirect if VKYC is completed AND this is NOT an update request
-                if (profileData.vkyc_completed && !isUpdate) {
+                // If VKYC is already completed, redirect to profile
+                if (profileData.vkyc_completed) {
                     router.push('/');
                     return;
                 }
@@ -358,7 +352,7 @@ const VKYC = () => {
         };
 
         checkAuth();
-    }, [session, authLoading, router, isFullKYC, fullForm, basicForm, isUpdate]);
+    }, [session, authLoading, router, isFullKYC, fullForm, basicForm]);
 
     const uploadPhotoToCloudinary = async (imageData: string, documentType: string): Promise<string | null> => {
         try {
@@ -462,6 +456,7 @@ const VKYC = () => {
 
         try {
             // Prepare profile update data
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const profileData: any = {
                 first_name: values.firstName,
                 last_name: values.lastName,
@@ -513,9 +508,7 @@ const VKYC = () => {
                 },
                 body: JSON.stringify({
                     profileData,
-                    documents,
-                    kycType: isFullKYC ? 'full' : 'basic',
-                    isUpdate: isUpdate
+                    documents
                 }),
             });
 
@@ -523,10 +516,8 @@ const VKYC = () => {
 
             if (response.ok) {
                 toast({
-                    title: isUpdate ? "KYC Updated!" : "VKYC Completed!",
-                    description: isUpdate
-                        ? "Your KYC information has been updated successfully!"
-                        : "Your verification is complete. Welcome to the platform!",
+                    title: "VKYC Completed!",
+                    description: "Your verification is complete. Welcome to the platform!",
                 });
 
                 // Redirect to platform after successful completion
@@ -537,11 +528,11 @@ const VKYC = () => {
                 throw new Error(data.error || 'VKYC completion failed');
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('VKYC submission error:', error);
             toast({
                 title: "Error",
-                description: error.message || "Failed to complete VKYC. Please try again.",
+                description: error instanceof Error ? error.message : "Failed to complete VKYC. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -571,17 +562,12 @@ const VKYC = () => {
                                 <span className="text-xl font-bold text-slate-900">JusticeIA.ai</span>
                             </div>
                             <CardTitle className="text-2xl">
-                                {isUpdate
-                                    ? `Update ${isFullKYC ? 'Full' : 'Basic'} KYC Information`
-                                    : `${isFullKYC ? 'Full' : 'Basic'} KYC Verification`
-                                }
+                                {`${isFullKYC ? 'Full' : 'Basic'} KYC Verification`}
                             </CardTitle>
                             <CardDescription>
-                                {isUpdate
-                                    ? 'Update your KYC information and documents'
-                                    : isFullKYC
-                                        ? 'Complete your full verification with documents to access all legal services'
-                                        : 'Complete your basic verification to access legal services'
+                                {isFullKYC
+                                    ? 'Complete your full verification with documents to access all legal services'
+                                    : 'Complete your basic verification to access legal services'
                                 }
                             </CardDescription>
                             {isFullKYC && (
@@ -589,14 +575,6 @@ const VKYC = () => {
                                     <AlertCircle className="w-4 h-4 text-blue-600" />
                                     <span className="text-sm text-blue-600">
                                         Full KYC required for {profile.role?.replace('_', ' ')} role
-                                    </span>
-                                </div>
-                            )}
-                            {isUpdate && profile.vkyc_completed && (
-                                <div className="flex items-center justify-center space-x-2 mt-2 p-2 bg-green-50 rounded-lg">
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                    <span className="text-sm text-green-600">
-                                        Current KYC Status: Completed
                                     </span>
                                 </div>
                             )}
@@ -896,10 +874,7 @@ const VKYC = () => {
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
-                                            {isLoading
-                                                ? (isUpdate ? "Updating KYC..." : "Completing VKYC...")
-                                                : (isUpdate ? "Update KYC Information" : "Complete Full VKYC")
-                                            }
+                                            {isLoading ? "Completing VKYC..." : "Complete Full VKYC"}
                                         </Button>
                                     </form>
                                 </Form>
@@ -1007,10 +982,7 @@ const VKYC = () => {
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
-                                            {isLoading
-                                                ? (isUpdate ? "Updating KYC..." : "Completing VKYC...")
-                                                : (isUpdate ? "Update KYC Information" : "Complete Basic VKYC")
-                                            }
+                                            {isLoading ? "Completing VKYC..." : "Complete Basic VKYC"}
                                         </Button>
                                     </form>
                                 </Form>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/integrations/client';
+import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
     try {
@@ -11,17 +11,18 @@ export async function GET(req: NextRequest) {
         }
 
         // Verify JWT token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string };
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return NextResponse.json({ session: null });
+        }
+
+        const decoded = jwt.verify(token, jwtSecret) as { userId: string; email: string; role: string };
 
         // Fetch fresh user data from database
         const profile = await prisma.profile.findUnique({
             where: { id: decoded.userId },
-            select: {
-                id: true,
-                email: true,
-                first_name: true,
-                last_name: true,
-                vkyc_completed: true
+            include: {
+                advocateProfile: true
             }
         });
 
@@ -29,20 +30,30 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ session: null });
         }
 
-        // Create session object with fresh data
         const session = {
             user: {
                 id: profile.id,
                 email: profile.email,
-                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
-                vkyc_completed: profile.vkyc_completed
+                name: `${profile.first_name} ${profile.last_name}`.trim(),
+                role: profile.role,
+                kyc_type: profile.kyc_type,
+                can_upload_reports: profile.can_upload_reports,
+                vkyc_completed: profile.vkyc_completed,
+                isProfessional: ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(profile.role),
+                advocateProfile: profile.advocateProfile ? {
+                    id: profile.advocateProfile.id,
+                    specialization: profile.advocateProfile.specialization,
+                    hourly_rate: profile.advocateProfile.hourly_rate,
+                    is_verified: profile.advocateProfile.is_verified,
+                    is_available: profile.advocateProfile.is_available
+                } : null
             }
         };
 
         return NextResponse.json({ session });
 
     } catch (error) {
-        console.error('Session check error:', error);
-        return NextResponse.json({ session: null }, { status: 500 });
+        console.error('Session verification error:', error);
+        return NextResponse.json({ session: null });
     }
 }

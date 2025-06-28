@@ -6,7 +6,18 @@ interface User {
     id: string;
     email: string;
     name?: string;
+    role: string;
+    kyc_type?: string;
+    can_upload_reports?: boolean;
     vkyc_completed?: boolean;
+    isProfessional?: boolean;
+    advocateProfile?: {
+        id: string;
+        specialization: string[];
+        hourly_rate: number;
+        is_verified: boolean;
+        is_available: boolean;
+    } | null;
 }
 
 interface Session {

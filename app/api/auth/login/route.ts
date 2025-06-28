@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/integrations/client';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
     try {
         const { email, password } = await req.json();
 
-        // Find user
+        if (!email || !password) {
+            return NextResponse.json(
+                { error: 'Email and password are required' },
+                { status: 400 }
+            );
+        }
+
+        // Find user with advocate profile if applicable
         const profile = await prisma.profile.findUnique({
             where: { email },
-            select: {
-                id: true,
-                email: true,
-                password: true,
-                first_name: true,
-                last_name: true,
-                vkyc_completed: true
+            include: {
+                advocateProfile: true
             }
         });
 
@@ -34,8 +36,8 @@ export async function POST(req: NextRequest) {
                 { status: 401 }
             );
         }
-        const isValidPassword = await bcrypt.compare(password, profile.password);
 
+        const isValidPassword = await bcrypt.compare(password, profile.password);
         if (!isValidPassword) {
             return NextResponse.json(
                 { error: 'Invalid credentials' },
@@ -44,26 +46,48 @@ export async function POST(req: NextRequest) {
         }
 
         // Create JWT token
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return NextResponse.json(
+                { error: 'Server configuration error' },
+                { status: 500 }
+            );
+        }
+
         const token = jwt.sign(
             {
                 userId: profile.id,
-                email: profile.email
+                email: profile.email,
+                role: profile.role
             },
-            process.env.JWT_SECRET!,
+            jwtSecret,
             { expiresIn: '7d' }
         );
 
         // Create session object
+        const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(profile.role);
+
         const session = {
             user: {
                 id: profile.id,
                 email: profile.email,
-                name: `${profile.first_name} ${profile.last_name}`,
-                vkyc_completed: profile.vkyc_completed
+                name: `${profile.first_name} ${profile.last_name}`.trim(),
+                role: profile.role,
+                kyc_type: profile.kyc_type,
+                can_upload_reports: profile.can_upload_reports,
+                is_professional: isProfessional,
+                vkyc_completed: profile.vkyc_completed,
+                advocateProfile: profile.advocateProfile ? {
+                    id: profile.advocateProfile.id,
+                    specialization: profile.advocateProfile.specialization,
+                    hourly_rate: profile.advocateProfile.hourly_rate,
+                    is_verified: profile.advocateProfile.is_verified,
+                    is_available: profile.advocateProfile.is_available
+                } : null
             }
         };
 
-        // Set cookie and return session
+        // Set HTTP-only cookie
         const response = NextResponse.json({
             success: true,
             session,
@@ -74,7 +98,8 @@ export async function POST(req: NextRequest) {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 // 7 days
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+            path: '/'
         });
 
         return response;

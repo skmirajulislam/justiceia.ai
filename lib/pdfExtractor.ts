@@ -8,7 +8,7 @@ export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> 
         let extractedText = '';
 
         // Look for text objects in PDF
-        const textRegex = /BT\s*(.*?)\s*ET/gs;
+        const textRegex = /BT\s*(.*?)\s*ET/g;
         const textMatches = pdfString.match(textRegex) || [];
 
         for (const match of textMatches) {
@@ -37,7 +37,7 @@ export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> 
 
         // Method 3: Extract from font mappings and content streams
         if (extractedText.length < 50) {
-            const streamRegex = /stream\s*(.*?)\s*endstream/gs;
+            const streamRegex = /stream\s*(.*?)\s*endstream/g;
             const streams = pdfString.match(streamRegex) || [];
 
             for (const stream of streams) {
@@ -67,10 +67,10 @@ export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> 
 // Advanced PDF.js text extraction (fallback)
 export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<string> {
     try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+        const pdfjsLib = await import('pdfjs-dist');
 
-        // Disable worker for server-side usage
-        pdfjsLib.GlobalWorkerOptions.workerSrc = null;
+        // Disable worker for server-side usage  
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
         const loadingTask = pdfjsLib.getDocument({
             data: arrayBuffer,
@@ -85,10 +85,7 @@ export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<
         for (let i = 1; i <= pdf.numPages; i++) {
             try {
                 const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent({
-                    normalizeWhitespace: true,
-                    disableCombineTextItems: false
-                });
+                const textContent = await page.getTextContent();
 
                 const pageText = textContent.items
                     .map((item: any) => {

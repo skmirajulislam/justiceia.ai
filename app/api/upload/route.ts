@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
             select: {
                 id: true,
                 email: true,
-                vkyc_completed: true
+                vkyc_completed: true,
+                can_upload_reports: true,
+                role: true
             }
         });
 
@@ -61,11 +63,20 @@ export async function POST(request: NextRequest) {
 
         const formData = await request.formData();
         const file = formData.get('file') as File;
+        const uploadType = formData.get('type') as string; // 'report' or 'document'
 
         if (!file) {
             return NextResponse.json(
                 { error: 'No file provided' },
                 { status: 400 }
+            );
+        }
+
+        // If uploading a report, check if user has permission
+        if (uploadType === 'report' && !profile?.can_upload_reports) {
+            return NextResponse.json(
+                { error: 'You do not have permission to upload reports. Only professional users (barristers, lawyers, government officials) can upload reports.' },
+                { status: 403 }
             );
         }
 

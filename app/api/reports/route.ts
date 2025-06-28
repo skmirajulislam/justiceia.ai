@@ -149,6 +149,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check if user has permission to upload reports
+        const profile = await prisma.profile.findUnique({
+            where: { id: session.user.id },
+            select: { can_upload_reports: true, role: true }
+        });
+
+        if (!profile?.can_upload_reports) {
+            return NextResponse.json(
+                { error: 'You do not have permission to upload reports. Only professional users (barristers, lawyers, government officials) can upload reports.' },
+                { status: 403 }
+            );
+        }
+
         const body = await request.json();
         const { title, category, description, pdf_url, cloudinary_public_id, tags, date, court } = body;
 

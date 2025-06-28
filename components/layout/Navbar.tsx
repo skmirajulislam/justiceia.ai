@@ -64,7 +64,7 @@ const Navbar = () => {
   ];
 
   // Add Publish Report for lawyers
-  if (profile?.role && ['lawyer', 'barrister', 'government_official'].includes(profile.role)) {
+  if (profile?.role && ['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(profile.role)) {
     navItems.push({
       name: 'Publish Report',
       href: '/publish-report',
