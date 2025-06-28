@@ -358,7 +358,7 @@ const PublishReport = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
             <Navbar />
-            <div className="pt-24 px-4 py-8">
+            <div className="mt-4 pt-24 px-4 py-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold text-slate-900">Publish Legal Report</h1>

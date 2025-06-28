@@ -19,7 +19,6 @@ const HeroSection = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-slate-200/30 rounded-full blur-3xl"></div>
         <div className="absolute top-3/4 left-1/2 w-64 h-64 bg-sky-300/20 rounded-full blur-2xl"></div>
       </div>
-
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Badge */}
         <div className="inline-flex items-center space-x-2 bg-white/70 backdrop-blur-sm border border-sky-200 rounded-full px-4 py-2 text-sm text-slate-600 mb-8">
@@ -36,15 +35,8 @@ const HeroSection = () => {
         </h1>
 
         {/* Subtitle */}
-<<<<<<< HEAD
         <p className="text-xl sm:text-1xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
           Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
-
-=======
-        <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Your intelligent legal companion for case research, document analysis,
-          and connecting with expert advocates across India.
->>>>>>> 5279ae2c871e1826496dd0cfe550b257d50f44b9
         </p>
 
         {/* Search Bar */}

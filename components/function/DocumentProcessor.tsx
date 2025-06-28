@@ -90,7 +90,8 @@ const DocumentProcessor = () => {
         { value: 'terms', label: 'Terms of Service' },
         { value: 'privacy', label: 'Privacy Policy' },
         { value: 'invoice', label: 'Legal Invoice' },
-        { value: 'notice', label: 'Legal Notice' }
+        { value: 'notice', label: 'Legal Notice' },
+        { value: 'agreement', label: 'Legal Contact' }
     ];
 
     // Supported languages
