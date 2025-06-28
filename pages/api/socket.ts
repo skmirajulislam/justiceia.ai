@@ -19,7 +19,7 @@ interface VideoCallData {
 }
 
 let io: Server;
-// userId -> Set of socketIds
+
 const onlineUsers = new Map<string, Set<string>>();
 
 const initSocket = (server: HTTPServer) => {
