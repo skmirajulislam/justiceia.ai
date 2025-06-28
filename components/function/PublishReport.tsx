@@ -358,7 +358,7 @@ const PublishReport = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
             <Navbar />
-            <div className="mt-4 pt-24 px-4 py-8">
+            <div className="mt-3 pt-24 px-4 py-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="mb-8">
                         <h1 className="text-3xl font-bold text-slate-900">Publish Legal Report</h1>
@@ -374,7 +374,7 @@ const PublishReport = () => {
                         {/* Publish New Report */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center space-x-2">
+                                <CardTitle className="mt-1 flex items-center space-x-2">
                                     <FileText className="w-5 h-5" />
                                     <span>New Report</span>
                                 </CardTitle>
@@ -399,7 +399,7 @@ const PublishReport = () => {
                                             )}
                                         />
 
-                                        <FormField
+                                        <FormField 
                                             control={form.control}
                                             name="category"
                                             render={({ field }) => (

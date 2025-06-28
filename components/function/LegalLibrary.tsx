@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, BookOpen, Filter, Download, Eye, User } from 'lucide-react';
+import { Search, BookOpen, Filter, Download, Eye } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 
