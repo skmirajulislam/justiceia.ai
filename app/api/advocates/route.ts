@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
             location: advocate.location || 'Not specified',
             rate: advocate.hourly_rate,
             available: advocate.is_available,
-            image: advocate.image_url || '/default-avatar.png',
+            image: advocate.image_url || '/default-avatar.svg',
             languages: advocate.languages || ['English'],
             bio: advocate.bio || '',
             education: advocate.education || '',

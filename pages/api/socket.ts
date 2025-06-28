@@ -40,7 +40,17 @@ const initSocket = (server: HTTPServer) => {
             // Join user to their room
             socket.on('join-room', (userId: string) => {
                 socket.join(userId);
-                console.log(`User ${userId} joined room`);
+
+                // Mark user as online
+                onlineUsers.set(userId, socket.id);
+                console.log(`User ${userId} joined room and is now online`);
+
+                // Broadcast to all clients that this user is online
+                socket.broadcast.emit('user-online', { userId, isOnline: true });
+
+                // Send current online users list to the joining user
+                const onlineUserIds = Array.from(onlineUsers.keys());
+                socket.emit('online-users-list', onlineUserIds);
             });
 
             // Handle user online status
@@ -52,7 +62,7 @@ const initSocket = (server: HTTPServer) => {
                     onlineUsers.delete(data.userId);
                     console.log(`User ${data.userId} is now offline`);
                 }
-                
+
                 // Broadcast to all connected clients
                 socket.broadcast.emit('user-online', data);
             });
@@ -102,13 +112,11 @@ const initSocket = (server: HTTPServer) => {
             });
 
             socket.on('end-video-call', (data: { callId: string }) => {
-                // Notify all participants in the call
                 socket.broadcast.emit('video-call-ended', {
                     callId: data.callId
                 });
             });
 
-            // WebRTC signaling
             socket.on('offer', (data: { offer: RTCSessionDescriptionInit, targetId: string }) => {
                 socket.to(data.targetId).emit('offer', {
                     offer: data.offer,
@@ -130,14 +138,11 @@ const initSocket = (server: HTTPServer) => {
                 });
             });
 
-            // Handle consultation requests
             socket.on('consultation-request', (request: { advocateId: string;[key: string]: unknown }) => {
-                // Emit to the advocate
-                socket.to(request.advocateId).emit('consultation-request', request);
+               socket.to(request.advocateId).emit('consultation-request', request);
             });
 
             socket.on('request-approved', (request: { clientId: string;[key: string]: unknown }) => {
-                // Emit to the client
                 socket.to(request.clientId).emit('request-approved', request);
             });
 
@@ -148,13 +153,13 @@ const initSocket = (server: HTTPServer) => {
 
             socket.on('disconnect', () => {
                 console.log('Client disconnected:', socket.id);
-                
+
                 // Find and remove the user from online users
                 for (const [userId, socketId] of onlineUsers.entries()) {
                     if (socketId === socket.id) {
                         onlineUsers.delete(userId);
                         console.log(`User ${userId} disconnected and is now offline`);
-                        
+
                         // Broadcast to all connected clients that user is offline
                         socket.broadcast.emit('user-online', { userId, isOnline: false });
                         break;
