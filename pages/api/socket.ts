@@ -19,7 +19,8 @@ interface VideoCallData {
 }
 
 let io: Server;
-const onlineUsers = new Map<string, string>(); // userId -> socketId
+
+const onlineUsers = new Map<string, Set<string>>();
 
 const initSocket = (server: HTTPServer) => {
     if (!io) {
@@ -41,35 +42,46 @@ const initSocket = (server: HTTPServer) => {
             socket.on('join-room', (userId: string) => {
                 socket.join(userId);
 
-                // Mark user as online
-                onlineUsers.set(userId, socket.id);
-                console.log(`User ${userId} joined room and is now online`);
+                // Add this socket to the user's set
+                if (!onlineUsers.has(userId)) {
+                    onlineUsers.set(userId, new Set());
+                }
+                onlineUsers.get(userId)!.add(socket.id);
 
                 // Broadcast to all clients that this user is online
                 socket.broadcast.emit('user-online', { userId, isOnline: true });
 
                 // Send current online users list to the joining user
-                const onlineUserIds = Array.from(onlineUsers.keys());
+                const onlineUserIds = Array.from(onlineUsers.entries())
+                    .filter(([_, sockets]) => sockets.size > 0)
+                    .map(([id]) => id);
                 socket.emit('online-users-list', onlineUserIds);
             });
 
-            // Handle user online status
+            // Handle user online status (legacy, can be kept for compatibility)
             socket.on('user-online', (data: { userId: string, isOnline: boolean }) => {
                 if (data.isOnline) {
-                    onlineUsers.set(data.userId, socket.id);
-                    console.log(`User ${data.userId} is now online`);
+                    if (!onlineUsers.has(data.userId)) {
+                        onlineUsers.set(data.userId, new Set());
+                    }
+                    onlineUsers.get(data.userId)!.add(socket.id);
                 } else {
-                    onlineUsers.delete(data.userId);
-                    console.log(`User ${data.userId} is now offline`);
+                    if (onlineUsers.has(data.userId)) {
+                        onlineUsers.get(data.userId)!.delete(socket.id);
+                        if (onlineUsers.get(data.userId)!.size === 0) {
+                            onlineUsers.delete(data.userId);
+                        }
+                    }
                 }
-
                 // Broadcast to all connected clients
                 socket.broadcast.emit('user-online', data);
             });
 
             // Send current online users list
             socket.on('get-online-users', () => {
-                const onlineUserIds = Array.from(onlineUsers.keys());
+                const onlineUserIds = Array.from(onlineUsers.entries())
+                    .filter(([_, sockets]) => sockets.size > 0)
+                    .map(([id]) => id);
                 socket.emit('online-users-list', onlineUserIds);
             });
 
@@ -139,7 +151,7 @@ const initSocket = (server: HTTPServer) => {
             });
 
             socket.on('consultation-request', (request: { advocateId: string;[key: string]: unknown }) => {
-               socket.to(request.advocateId).emit('consultation-request', request);
+                socket.to(request.advocateId).emit('consultation-request', request);
             });
 
             socket.on('request-approved', (request: { clientId: string;[key: string]: unknown }) => {
@@ -147,21 +159,19 @@ const initSocket = (server: HTTPServer) => {
             });
 
             socket.on('request-rejected', (request: { clientId: string;[key: string]: unknown }) => {
-                // Emit to the client
                 socket.to(request.clientId).emit('request-rejected', request);
             });
 
             socket.on('disconnect', () => {
-                console.log('Client disconnected:', socket.id);
-
-                // Find and remove the user from online users
-                for (const [userId, socketId] of onlineUsers.entries()) {
-                    if (socketId === socket.id) {
-                        onlineUsers.delete(userId);
-                        console.log(`User ${userId} disconnected and is now offline`);
-
-                        // Broadcast to all connected clients that user is offline
-                        socket.broadcast.emit('user-online', { userId, isOnline: false });
+                // Remove this socket from all user sets
+                for (const [userId, sockets] of onlineUsers.entries()) {
+                    if (sockets.has(socket.id)) {
+                        sockets.delete(socket.id);
+                        if (sockets.size === 0) {
+                            onlineUsers.delete(userId);
+                            // Broadcast to all clients that user is offline
+                            socket.broadcast.emit('user-online', { userId, isOnline: false });
+                        }
                         break;
                     }
                 }
