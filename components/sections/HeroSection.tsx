@@ -36,13 +36,20 @@ const HeroSection = () => {
         </h1>
 
         {/* Subtitle */}
+<<<<<<< HEAD
         <p className="text-xl sm:text-1xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
           Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
 
+=======
+        <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+          Your intelligent legal companion for case research, document analysis,
+          and connecting with expert advocates across India.
+>>>>>>> 5279ae2c871e1826496dd0cfe550b257d50f44b9
         </p>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-16">
+
+        {/* <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-16">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-slate-400" />
@@ -62,9 +69,10 @@ const HeroSection = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </form>
+        </form> */}
 
         {/* Quick suggestions */}
+
         <div className="flex flex-wrap justify-center gap-3 mb-8">
           {['IPC Section 420', 'Property Law', 'Family Court', 'Corporate Law'].map((suggestion) => (
             <button

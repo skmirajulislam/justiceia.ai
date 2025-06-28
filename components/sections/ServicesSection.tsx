@@ -50,7 +50,7 @@ const ServicesSection = () => {
             Everything You Need for Legal Success
           </h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            From AI-powered research to secure consultations, our platform provides all the tools 
+            From AI-powered research to secure consultations, our platform provides all the tools
             you need to navigate India's legal landscape efficiently.
           </p>
         </div>
@@ -98,9 +98,12 @@ const ServicesSection = () => {
 
         {/* Bottom CTA */}
         <div className="text-center mt-16">
-          <button className="bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
+          <a
+            href="/profile"
+            className="inline-block bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+          >
             Start Your Legal Journey Today
-          </button>
+          </a>
         </div>
       </div>
     </section>

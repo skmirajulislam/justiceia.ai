@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
                 secure: true,
                 transformation: [
                     { page: 1 }, // First page
-                    { format: 'jpg' },
+                    { format: 'pdf' },
                     { quality: 'auto:good' },
                     { width: 600 }, // Set width for preview
                     { height: 800 }, // Set height for preview
