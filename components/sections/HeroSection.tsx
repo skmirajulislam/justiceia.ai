@@ -1,15 +1,7 @@
 "use client"
-import { Search, ArrowRight, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 const HeroSection = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Searching for:', searchQuery);
-    // TODO: Implement search functionality
-  };
 
   return (
     <section className="relative min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-slate-100 flex items-center justify-center overflow-hidden">
@@ -33,46 +25,12 @@ const HeroSection = () => {
           <span className="block bg-gradient-to-r from-sky-500 to-sky-600 bg-clip-text text-transparent">
             Powered by AI
           </span>
-        </h1>
-
-        {/* Subtitle */}
-<<<<<<< HEAD
-        <p className="text-xl sm:text-1xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
-
-=======
+        </h1>        {/* Subtitle */}
         <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Your intelligent legal companion for case research, document analysis,
-          and connecting with expert advocates across India.
->>>>>>> 5279ae2c871e1826496dd0cfe550b257d50f44b9
+          Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
         </p>
 
-        {/* Search Bar */}
-
-        {/* <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-16">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Laws, Judgments, Lawyers..."
-              className="truncate w-full pl-12 pr-32 py-4 text-lg border border-slate-300 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white/80 backdrop-blur-sm shadow-lg transition-all duration-200"
-            />
-            <button
-              type="submit"
-              className="absolute inset-y-0 right-0 mr-2 my-2 px-6 bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2"
-            >
-              <span>Search</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </form> */}
-
         {/* Quick suggestions */}
-
         <div className="flex flex-wrap justify-center gap-3 mb-8">
           {['IPC Section 420', 'Property Law', 'Family Court', 'Corporate Law'].map((suggestion) => (
             <button

@@ -1,4 +1,5 @@
 "use client"
+import Link from 'next/link';
 import { MessageSquare, Shield, BookOpen, Video, ArrowRight, Sparkles } from 'lucide-react';
 
 const ServicesSection = () => {
@@ -95,17 +96,16 @@ const ServicesSection = () => {
             </div>
           ))}
         </div>
-
         {/* Bottom CTA */}
         <div className="text-center mt-16">
-          <a
-            href="/profile"
+          <Link
+            href="/"
             className="inline-block bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             Start Your Legal Journey Today
-          </a>
+          </Link>
         </div>
-      </div>
+        </div>
     </section>
   );
 };

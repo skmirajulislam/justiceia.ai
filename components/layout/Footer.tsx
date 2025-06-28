@@ -60,11 +60,8 @@ const Footer = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="w-4 h-4" />
-<<<<<<< HEAD
-                <span>‪+91 62897 90425‬</span>
-=======
                 <span>+91 62897 90425</span>
->>>>>>> 5279ae2c871e1826496dd0cfe550b257d50f44b9
+                <span>+91 62897 90425</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4" />
@@ -117,13 +114,9 @@ const Footer = () => {
       {/* Bottom bar */}
       <div className="border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left">
             <div className="text-slate-400 text-sm mb-4 md:mb-0">
-<<<<<<< HEAD
-              © 2025 Advocate.ai. All rights reserved. | Built with ❤ for the Indian Legal Community
-=======
               © 2025 Advocate.ai. All rights reserved. | Built with ❤️ for the Indian Legal Community
->>>>>>> 5279ae2c871e1826496dd0cfe550b257d50f44b9
             </div>
             {/* Social links */}
             <div className="flex space-x-4">
@@ -145,4 +138,4 @@ const Footer = () => {
   );
 };
 
-export default Footer;
+export default Footer;
