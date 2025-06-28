@@ -231,6 +231,13 @@ const VideoConsult = () => {
             if (response.ok) {
                 const data = await response.json();
                 setAdvocates(data.advocates || []);
+
+                // After advocates are loaded, request online status for all
+                if (socket) {
+                    socket.emit('get-online-users');
+                }
+
+                console.log('📋 Loaded advocates:', data.advocates?.map((a: Lawyer) => ({ id: a.id, name: a.name })));
             }
         } catch (error) {
             console.error('Error fetching advocates:', error);
@@ -301,6 +308,16 @@ const VideoConsult = () => {
 
         // Request current online users list
         newSocket.emit('get-online-users');
+
+        // Handle initial online users list
+        newSocket.on('online-users-list', (onlineUserIds: string[]) => {
+            console.log('📡 Received online users list:', onlineUserIds);
+            const statusMap: { [key: string]: boolean } = {};
+            onlineUserIds.forEach(userId => {
+                statusMap[userId] = true;
+            });
+            setUserOnlineStatus(prev => ({ ...prev, ...statusMap }));
+        });
 
         newSocket.on('consultation-request', (request: ConsultationRequest) => {
             if (isAdvocate) {
