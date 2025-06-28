@@ -9,23 +9,23 @@ datasource db {
 }
 
 model Profile {
-  id                String           @id @default(uuid())
-  address           String?
-  created_at        DateTime         @default(now())
-  email             String?          @unique
-  password          String?
-  first_name        String?
-  last_name         String?
-  phone             String?
-  role              UserRole         @default(REGULAR_USER)
-  kyc_type          KycType          @default(REGULAR)
-  updated_at        DateTime         @default(now()) @updatedAt
-  vkyc_completed    Boolean          @default(false)
-  vkyc_completed_at DateTime?
-  can_upload_reports Boolean         @default(false)
-  reports           Report[]
-  advocateProfile   AdvocateProfile?
-  vkycDocuments     VkycDocument[]   @relation("UserVkycDocuments")
+  id                 String           @id @default(uuid())
+  address            String?
+  created_at         DateTime         @default(now())
+  email              String?          @unique
+  password           String?
+  first_name         String?
+  last_name          String?
+  phone              String?
+  role               UserRole         @default(REGULAR_USER)
+  kyc_type           KycType          @default(REGULAR)
+  updated_at         DateTime         @default(now()) @updatedAt
+  vkyc_completed     Boolean          @default(false)
+  vkyc_completed_at  DateTime?
+  can_upload_reports Boolean          @default(false)
+  reports            Report[]
+  advocateProfile    AdvocateProfile?
+  vkycDocuments      VkycDocument[]   @relation("UserVkycDocuments")
 
   @@map("profiles")
 }

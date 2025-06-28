@@ -4,7 +4,11 @@ import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import ClientProviders from "@/components/providers/ClientProviders";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  display: 'swap',
+  fallback: ['system-ui', 'arial']
+});
 
 export const metadata: Metadata = {
   title: "Justiceia.ai",

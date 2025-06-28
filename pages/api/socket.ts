@@ -19,6 +19,7 @@ interface VideoCallData {
 }
 
 let io: Server;
+const onlineUsers = new Map<string, string>(); // userId -> socketId
 
 const initSocket = (server: HTTPServer) => {
     if (!io) {
@@ -40,6 +41,34 @@ const initSocket = (server: HTTPServer) => {
             socket.on('join-room', (userId: string) => {
                 socket.join(userId);
                 console.log(`User ${userId} joined room`);
+            });
+
+            // Handle user online status
+            socket.on('user-online', (data: { userId: string, isOnline: boolean }) => {
+                if (data.isOnline) {
+                    onlineUsers.set(data.userId, socket.id);
+                    console.log(`User ${data.userId} is now online`);
+                } else {
+                    onlineUsers.delete(data.userId);
+                    console.log(`User ${data.userId} is now offline`);
+                }
+                
+                // Broadcast to all connected clients
+                socket.broadcast.emit('user-online', data);
+            });
+
+            // Send current online users list
+            socket.on('get-online-users', () => {
+                const onlineUserIds = Array.from(onlineUsers.keys());
+                socket.emit('online-users-list', onlineUserIds);
+            });
+
+            // Handle typing indicator
+            socket.on('user-typing', (data: { userId: string, targetUserId: string, isTyping: boolean }) => {
+                socket.to(data.targetUserId).emit('user-typing', {
+                    userId: data.userId,
+                    isTyping: data.isTyping
+                });
             });
 
             // Handle chat messages
@@ -119,6 +148,18 @@ const initSocket = (server: HTTPServer) => {
 
             socket.on('disconnect', () => {
                 console.log('Client disconnected:', socket.id);
+                
+                // Find and remove the user from online users
+                for (const [userId, socketId] of onlineUsers.entries()) {
+                    if (socketId === socket.id) {
+                        onlineUsers.delete(userId);
+                        console.log(`User ${userId} disconnected and is now offline`);
+                        
+                        // Broadcast to all connected clients that user is offline
+                        socket.broadcast.emit('user-online', { userId, isOnline: false });
+                        break;
+                    }
+                }
             });
         });
     }

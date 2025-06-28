@@ -296,6 +296,12 @@ const VideoConsult = () => {
         // Join user to their room for real-time updates
         newSocket.emit('join-room', session.user.id);
 
+        // Emit that user is online
+        newSocket.emit('user-online', { userId: session.user.id, isOnline: true });
+
+        // Request current online users list
+        newSocket.emit('get-online-users');
+
         newSocket.on('consultation-request', (request: ConsultationRequest) => {
             if (isAdvocate) {
                 setConsultationRequests(prev => [...prev, request]);
@@ -332,6 +338,18 @@ const VideoConsult = () => {
             setUserOnlineStatus(prev => ({ ...prev, [data.userId]: data.isOnline }));
         });
 
+        newSocket.on('online-users-list', (onlineUsers: string[]) => {
+            const onlineStatus: { [key: string]: boolean } = {};
+            onlineUsers.forEach(userId => {
+                onlineStatus[userId] = true;
+            });
+            // Set all advocates as online if they're in the online users list
+            advocates.forEach(advocate => {
+                onlineStatus[advocate.id] = onlineUsers.includes(advocate.id);
+            });
+            setUserOnlineStatus(onlineStatus);
+        });
+
         newSocket.on('video-call-incoming', (data: { callId: string, from: string, fromName: string }) => {
             setIncomingCall({
                 callId: data.callId,
@@ -354,11 +372,28 @@ const VideoConsult = () => {
             });
         });
 
+        // Handle disconnection
+        const handleBeforeUnload = () => {
+            newSocket.emit('user-online', { userId: session.user.id, isOnline: false });
+        };
+
+        // Heartbeat to maintain online status
+        const heartbeatInterval = setInterval(() => {
+            if (newSocket.connected) {
+                newSocket.emit('user-online', { userId: session.user.id, isOnline: true });
+            }
+        }, 30000); // Every 30 seconds
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         return () => {
+            clearInterval(heartbeatInterval);
+            newSocket.emit('user-online', { userId: session.user.id, isOnline: false });
+            window.removeEventListener('beforeunload', handleBeforeUnload);
             newSocket.close();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, isAdvocate, activeChat, toast]);
+    }, [session, isAdvocate, activeChat, toast, advocates]);
 
     // Initialize WebRTC peer connection
     const initializePeerConnection = () => {
@@ -777,8 +812,6 @@ const VideoConsult = () => {
 
     const handleCreateProfile = async (data: AdvocateProfileFormData) => {
         try {
-            console.log('🔵 Creating profile with data:', data);
-
             // Validate required fields
             if (!data.specialization || !data.bio || !data.education || !data.certifications || !data.languages) {
                 toast({
@@ -804,7 +837,6 @@ const VideoConsult = () => {
 
             if (response.ok) {
                 const result = await response.json();
-                console.log('🔵 Profile created successfully:', result);
                 setAdvocateProfile(result.profile);
                 advocateForm.reset();
                 setIsProfileDialogOpen(false);
@@ -1138,6 +1170,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 </Card>
             )}
 
+            {/* Debug Online Status - Remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+                <Card className="mb-4 bg-yellow-50 border-yellow-200">
+                    <CardContent className="p-4">
+                        <h3 className="text-sm font-medium text-yellow-800 mb-2">Debug: Online Status</h3>
+                        <div className="text-xs text-yellow-700">
+                            <p>Online Users: {JSON.stringify(userOnlineStatus)}</p>
+                            <p>Advocates: {lawyers.map(l => `${l.name}(${l.id})`).join(', ')}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Lawyers Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {lawyers.map((lawyer) => {
@@ -1163,7 +1208,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                                             <CardTitle className="text-lg">{lawyer.name}</CardTitle>
                                             <div className="flex items-center space-x-2">
                                                 <div className={`w-3 h-3 rounded-full ${userOnlineStatus[lawyer.id] ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                                <span className="text-xs text-slate-500">
+                                                <span className={`text-xs font-medium ${userOnlineStatus[lawyer.id] ? 'text-green-600' : 'text-gray-500'}`}>
                                                     {userOnlineStatus[lawyer.id] ? 'Online' : 'Offline'}
                                                 </span>
                                             </div>
@@ -1216,7 +1261,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                                     >
                                         <Video className="w-4 h-4 mr-2" />
                                         {!isPaid ? 'Request Consultation' :
-                                            !userOnlineStatus[lawyer.id] ? 'Call (Offline - Will Notify)' : 'Start Video Call'}
+                                            userOnlineStatus[lawyer.id] ? '🟢 Start Video Call (Online)' : 'Call (Offline - Will Notify)'}
                                     </Button>
                                     <div className="flex space-x-2">
                                         <Button
@@ -1318,7 +1363,6 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
     toast
 }) => {
     if (!profile) {
-        console.log('🔍 No advocate profile found, showing create profile dialog');
         return (
             <Card>
                 <CardHeader>
@@ -1326,15 +1370,9 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                     <CardDescription>Please create your profile to start receiving consultation requests.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Dialog open={isProfileDialogOpen} onOpenChange={(open) => {
-                        console.log('🔍 Dialog state changing to:', open);
-                        setIsProfileDialogOpen(open);
-                    }}>
+                    <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button onClick={() => {
-                                console.log('🔍 Create Profile button clicked');
-                                setIsProfileDialogOpen(true);
-                            }}>
+                            <Button onClick={() => setIsProfileDialogOpen(true)}>
                                 <Plus className="w-4 h-4 mr-2" />
                                 Create Profile
                             </Button>
@@ -1347,8 +1385,6 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                                 <form
                                     onSubmit={(e) => {
                                         e.preventDefault();
-                                        console.log('🔍 Form submission triggered');
-                                        console.log('🔍 Form values:', advocateForm.getValues());
                                         advocateForm.handleSubmit(onCreateProfile)(e);
                                     }}
                                     className="space-y-4"
@@ -1711,15 +1747,15 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                                     onClick={() => {
                                         // Populate form with current values
                                         advocateForm.reset({
-                                            specialization: Array.isArray(profile.specialization) ? 
+                                            specialization: Array.isArray(profile.specialization) ?
                                                 profile.specialization[0] : profile.specialization || '',
                                             experience: profile.experience || 0,
                                             bio: profile.bio || '',
                                             education: profile.education || '',
-                                            certifications: Array.isArray(profile.certifications) ? 
+                                            certifications: Array.isArray(profile.certifications) ?
                                                 profile.certifications.join(', ') : profile.certifications || '',
                                             hourly_rate: profile.hourly_rate || profile.rate || 0,
-                                            languages: Array.isArray(profile.languages) ? 
+                                            languages: Array.isArray(profile.languages) ?
                                                 profile.languages.join(', ') : profile.languages || ''
                                         });
                                         setIsUpdateDialogOpen(true);
