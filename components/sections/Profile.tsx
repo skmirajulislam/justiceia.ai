@@ -133,11 +133,11 @@ const Profile = () => {
                 description: "Profile updated successfully!",
             });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Profile update error:', error);
             toast({
                 title: "Error",
-                description: error.message || "Failed to update profile. Please try again.",
+                description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
                 variant: "destructive",
             });
         } finally {
@@ -164,9 +164,10 @@ const Profile = () => {
                 description: "Your account has been permanently deleted.",
             });
 
-            router.push('/');
+            // Clear any auth state and redirect to home
+            window.location.href = '/';
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Account deletion error:', error);
             toast({
                 title: "Error",
@@ -236,9 +237,11 @@ const Profile = () => {
                                             <span className="text-sm text-slate-600">{profile.reports?.length || 0}</span>
                                         </div>
                                     </div>
-                                    <Button asChild className="w-full">
-                                        <a href="/vkyc">Update KYC</a>
-                                    </Button>
+                                    {!profile.vkyc_completed && (
+                                        <Button asChild className="w-full">
+                                            <a href="/vkyc">Complete KYC</a>
+                                        </Button>
+                                    )}
                                 </CardContent>
                             </Card>
                         </div>
@@ -340,8 +343,7 @@ const Profile = () => {
                                                                 <SelectTrigger>
                                                                     <SelectValue placeholder="Select your role" />
                                                                 </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent>
+                                                            </FormControl>                                            <SelectContent>
                                                                 <SelectItem value="user">Regular User</SelectItem>
                                                                 <SelectItem value="lawyer">Lawyer</SelectItem>
                                                                 <SelectItem value="barrister">Barrister</SelectItem>

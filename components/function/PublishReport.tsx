@@ -142,7 +142,7 @@ const PublishReport = () => {
                     return;
                 }
 
-                if (!['lawyer', 'barrister', 'government_official'].includes(profileData.role ?? '')) {
+                if (!['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(profileData.role ?? '')) {
                     toast({
                         title: "Access Denied",
                         description: "Only lawyers, barristers, and government officials can access this section.",
