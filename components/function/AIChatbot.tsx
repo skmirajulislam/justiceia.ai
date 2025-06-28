@@ -245,7 +245,7 @@ const AIChatbot = () => {
             <Navbar />
             <div className="pt-24 px-4 py-8">
                 <div className="max-w-4xl mx-auto">
-                    <Card className="h-[calc(100vh-12rem)]">
+                    <Card className="h-[calc(100vh-12rem)] flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
@@ -303,8 +303,8 @@ const AIChatbot = () => {
                             </CardContent>
                         ) : (
                             <>
-                                <CardContent className="flex-1 p-0">
-                                    <ScrollArea className="h-[calc(100vh-20rem)] px-6" ref={chatContainerRef}>
+                                <CardContent className="flex-1 p-0 overflow-hidden">
+                                    <ScrollArea className="h-full px-6" ref={chatContainerRef}>
                                         <div className="space-y-4 py-4">
                                             {messages.map((message) => (
                                                 <div

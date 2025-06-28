@@ -28,17 +28,17 @@ const HeroSection = () => {
         </div>
 
         {/* Main heading */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6">
-          <span className="block">Empowering Legal Access</span>
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 font-[Times_New_Roman]">
+          <span className="block">Seamless Legal Support for India</span>
           <span className="block bg-gradient-to-r from-sky-500 to-sky-600 bg-clip-text text-transparent">
-            with AI in India
+            Powered by AI
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Your intelligent legal companion for case research, document analysis, 
-          and connecting with expert advocates across India.
+        <p className="text-xl sm:text-1xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+          Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
+
         </p>
 
         {/* Search Bar */}
@@ -52,7 +52,7 @@ const HeroSection = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Laws, Judgments, Lawyers..."
-              className="w-full pl-12 pr-32 py-4 text-lg border border-slate-300 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white/80 backdrop-blur-sm shadow-lg transition-all duration-200"
+              className="truncate w-full pl-12 pr-32 py-4 text-lg border border-slate-300 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white/80 backdrop-blur-sm shadow-lg transition-all duration-200"
             />
             <button
               type="submit"

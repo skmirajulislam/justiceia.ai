@@ -120,13 +120,7 @@ const Navbar = () => {
                       View Profile
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/vkyc" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Update KYC
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout

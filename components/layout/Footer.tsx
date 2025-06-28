@@ -48,23 +48,23 @@ const Footer = () => {
               <span className="text-xl font-bold">Advocate.ai</span>
             </div>
             <p className="text-slate-400 mb-6 max-w-md">
-              Empowering legal access with AI in India. Your intelligent companion for case research, 
+              Empowering legal access with AI in India. Your intelligent companion for case research,
               document analysis, and connecting with expert advocates.
             </p>
-            
+
             {/* Contact info */}
             <div className="space-y-2 text-sm text-slate-400">
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4" />
-                <span>contact@advocate.ai</span>
+                <span>arnabdas9575@gmail.com</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="w-4 h-4" />
-                <span>+91 98765 43210</span>
+                <span>‪+91 62897 90425‬</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4" />
-                <span>New Delhi, India</span>
+                <span>Kolkata, India</span>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@ const Footer = () => {
               <h3 className="text-lg font-semibold mb-2">Stay Updated</h3>
               <p className="text-slate-400">Get the latest legal tech insights and platform updates.</p>
             </div>
-            <div className="flex space-x-4">
+            {/* <div className="flex space-x-4">
               <input
                 type="email"
                 placeholder="Enter your email"
@@ -105,7 +105,7 @@ const Footer = () => {
               <button className="bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200">
                 Subscribe
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -115,9 +115,8 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-slate-400 text-sm mb-4 md:mb-0">
-              © 2024 Advocate.ai. All rights reserved. | Built with ❤️ for the Indian Legal Community
+              © 2025 Advocate.ai. All rights reserved. | Built with ❤ for the Indian Legal Community
             </div>
-            
             {/* Social links */}
             <div className="flex space-x-4">
               {socialLinks.map((social) => (
@@ -138,4 +137,4 @@ const Footer = () => {
   );
 };
 
-export default Footer;
+export default Footer;
