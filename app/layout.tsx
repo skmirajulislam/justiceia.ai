@@ -7,7 +7,6 @@ import ClientProviders from "@/components/providers/ClientProviders";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  
   title: "Justiceia.ai",
   description: "Access AI-powered legal assistance and consultation services",
 };
