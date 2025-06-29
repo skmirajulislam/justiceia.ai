@@ -1,6 +1,14 @@
 'use client';
 import VideoConsult from '@/components/function/VideoConsult'
-
+import { SocketProvider } from '@/components/function/VideoConsult';
+import { VideoCallProvider } from '@/components/function/VideoConsult';
 export default function ConsultPage() {
-    return <VideoConsult />
+
+    return (
+        <SocketProvider>
+            <VideoCallProvider>
+                <VideoConsult />
+            </VideoCallProvider>
+        </SocketProvider>
+    );
 }

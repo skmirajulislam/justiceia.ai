@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +22,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import io, { Socket } from 'socket.io-client';
-import FakePaymentForm from '@/components/FakePaymentForm';
+import FakePaymentForm from '@/components/function/FakePaymentForm';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -86,9 +87,21 @@ interface VideoCallState {
     remoteStream: MediaStream | null;
     isMuted: boolean;
     isVideoOff: boolean;
-    isConnected: boolean;
-    participantName: string;
+    peerConnection: RTCPeerConnection | null;
+    callStatus: 'idle' | 'calling' | 'ringing' | 'ongoing' | 'ended';
+    callerInfo: {
+        id: string;
+        name: string;
+    } | null;
 }
+
+interface IncomingCall {
+    callId: string;
+    from: string;
+    fromName: string;
+    offer: RTCSessionDescriptionInit;
+}
+
 
 interface AdvocateProfile {
     id: string;
@@ -112,7 +125,6 @@ interface AdvocateProfile {
         email: string;
         phone: string;
     };
-    // Legacy fields for backward compatibility
     name?: string;
     email?: string;
     phone?: string;
@@ -120,11 +132,682 @@ interface AdvocateProfile {
     image?: string;
 }
 
+// Context Types
+interface SocketContextType {
+    socket: Socket | null;
+    onlineUsers: Set<string>;
+}
+
+interface VideoCallContextType {
+    videoCall: VideoCallState;
+    startCall: (participantId: string, participantName: string) => void;
+    endCall: () => void;
+    toggleMute: () => void;
+    toggleVideo: () => void;
+    incomingCall: IncomingCall | null;
+    acceptCall: () => void;
+    rejectCall: () => void;
+}
+
+// Create Contexts
+const SocketContext = createContext<SocketContextType>({
+    socket: null,
+    onlineUsers: new Set()
+});
+
+const VideoCallContext = createContext<VideoCallContextType>({
+    videoCall: {
+        isInCall: false,
+        callId: null,
+        localStream: null,
+        remoteStream: null,
+        isMuted: false,
+        isVideoOff: false,
+        peerConnection: null,
+        callStatus: 'idle',
+        callerInfo: null
+    },
+    startCall: () => { },
+    endCall: () => { },
+    toggleMute: () => { },
+    toggleVideo: () => { },
+    incomingCall: null,
+    acceptCall: () => { },
+    rejectCall: () => { }
+});
+
+// Context Providers
+export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [socket, setSocket] = useState<Socket | null>(null);
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+    const { data: session } = useSession();
+
+    useEffect(() => {
+        if (!session?.user?.id) return;
+
+        const newSocket = io('/', {
+            path: '/api/socket',
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+        });
+
+        // Register user
+        newSocket.emit('register-user', session.user.id);
+
+        // Handle online users
+        newSocket.on('online-users', (onlineUserIds: string[]) => {
+            setOnlineUsers(new Set(onlineUserIds));
+        });
+
+        // Handle individual status changes
+        newSocket.on('user-status-changed', (data: { userId: string, isOnline: boolean }) => {
+            setOnlineUsers(prev => {
+                const newSet = new Set(prev);
+                if (data.isOnline) {
+                    newSet.add(data.userId);
+                } else {
+                    newSet.delete(data.userId);
+                }
+                return newSet;
+            });
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.disconnect();
+        };
+    }, [session?.user?.id]);
+
+    return (
+        <SocketContext.Provider value={{ socket, onlineUsers }}>
+            {children}
+        </SocketContext.Provider>
+    );
+};
+
+export const VideoCallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { socket } = useSocket();
+    const { toast } = useToast();
+
+    const [videoCall, setVideoCall] = useState<VideoCallState>({
+        isInCall: false,
+        callId: null,
+        localStream: null,
+        remoteStream: null,
+        isMuted: false,
+        isVideoOff: false,
+        peerConnection: null,
+        callStatus: 'idle',
+        callerInfo: null
+    });
+
+    const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+
+    const initializePeerConnection = () => {
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+            ]
+        };
+
+        const pc = new RTCPeerConnection(configuration);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && socket && videoCall.callerInfo) {
+                socket.emit('ice-candidate', {
+                    candidate: event.candidate,
+                    targetId: videoCall.callerInfo.id,
+                    callId: videoCall.callId
+                });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            setVideoCall(prev => ({
+                ...prev,
+                remoteStream: event.streams[0],
+                callStatus: 'ongoing'
+            }));
+        };
+
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'disconnected' ||
+                pc.connectionState === 'failed') {
+                endCall();
+            }
+        };
+
+        return pc;
+    };
+
+    const startCall = async (participantId: string, participantName: string) => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+
+            const callId = `call_${Date.now()}`;
+            const peerConnection = initializePeerConnection();
+
+            stream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, stream);
+            });
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            setVideoCall({
+                isInCall: true,
+                callId,
+                localStream: stream,
+                remoteStream: null,
+                isMuted: false,
+                isVideoOff: false,
+                peerConnection,
+                callStatus: 'calling',
+                callerInfo: {
+                    id: participantId,
+                    name: participantName
+                }
+            });
+
+            if (socket) {
+                socket.emit('start-video-call', {
+                    callId,
+                    participantId,
+                    participantName,
+                    offer,
+                    callerId: socket.id,
+                    callerName: 'User'
+                });
+            }
+
+        } catch (error) {
+            console.error('Error starting call:', error);
+            toast({
+                title: "Error",
+                description: "Failed to start call. Please check permissions.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const endCall = () => {
+        if (videoCall.localStream) {
+            videoCall.localStream.getTracks().forEach(track => track.stop());
+        }
+        if (videoCall.peerConnection) {
+            videoCall.peerConnection.close();
+        }
+
+        if (socket && videoCall.callId && videoCall.callerInfo) {
+            socket.emit('end-call', {
+                callId: videoCall.callId,
+                targetId: videoCall.callerInfo.id
+            });
+        }
+
+        setVideoCall({
+            isInCall: false,
+            callId: null,
+            localStream: null,
+            remoteStream: null,
+            isMuted: false,
+            isVideoOff: false,
+            peerConnection: null,
+            callStatus: 'idle',
+            callerInfo: null
+        });
+    };
+
+    const toggleMute = () => {
+        if (videoCall.localStream) {
+            const audioTrack = videoCall.localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setVideoCall(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
+            }
+        }
+    };
+
+    const toggleVideo = () => {
+        if (videoCall.localStream) {
+            const videoTrack = videoCall.localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setVideoCall(prev => ({ ...prev, isVideoOff: !videoTrack.enabled }));
+            }
+        }
+    };
+
+    const acceptCall = async () => {
+        if (!incomingCall) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+
+            const peerConnection = initializePeerConnection();
+
+            stream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, stream);
+            });
+
+            await peerConnection.setRemoteDescription(
+                new RTCSessionDescription(incomingCall.offer)
+            );
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            setVideoCall({
+                isInCall: true,
+                callId: incomingCall.callId,
+                localStream: stream,
+                remoteStream: null,
+                isMuted: false,
+                isVideoOff: false,
+                peerConnection,
+                callStatus: 'ongoing',
+                callerInfo: {
+                    id: incomingCall.from,
+                    name: incomingCall.fromName
+                }
+            });
+
+            if (socket) {
+                socket.emit('call-accepted', {
+                    callId: incomingCall.callId,
+                    answer,
+                    targetId: incomingCall.from
+                });
+            }
+
+            setIncomingCall(null);
+        } catch (error) {
+            console.error('Error accepting call:', error);
+            toast({
+                title: "Error",
+                description: "Failed to accept call.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const rejectCall = () => {
+        if (socket && incomingCall) {
+            socket.emit('call-rejected', {
+                callId: incomingCall.callId,
+                targetId: incomingCall.from
+            });
+        }
+        setIncomingCall(null);
+    };
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleIncomingCall = (data: {
+            callId: string;
+            from: string;
+            fromName: string;
+            offer: RTCSessionDescriptionInit;
+        }) => {
+            setIncomingCall({
+                callId: data.callId,
+                from: data.from,
+                fromName: data.fromName,
+                offer: data.offer
+            });
+        };
+
+        const handleIceCandidate = (data: {
+            candidate: RTCIceCandidate;
+            callId: string;
+        }) => {
+            if (videoCall.callId === data.callId && videoCall.peerConnection) {
+                videoCall.peerConnection.addIceCandidate(
+                    new RTCIceCandidate(data.candidate)
+                ).catch(console.error);
+            }
+        };
+
+        const handleCallAnswer = (data: {
+            answer: RTCSessionDescriptionInit;
+            callId: string;
+        }) => {
+            if (videoCall.callId === data.callId && videoCall.peerConnection) {
+                videoCall.peerConnection.setRemoteDescription(
+                    new RTCSessionDescription(data.answer)
+                ).catch(console.error);
+            }
+        };
+
+        const handleCallEnded = () => {
+            endCall();
+            toast({
+                title: "Call Ended",
+                description: "The other participant has ended the call.",
+            });
+        };
+
+        socket.on('video-call-incoming', handleIncomingCall);
+        socket.on('ice-candidate', handleIceCandidate);
+        socket.on('call-answer', handleCallAnswer);
+        socket.on('call-ended', handleCallEnded);
+
+        return () => {
+            socket.off('video-call-incoming', handleIncomingCall);
+            socket.off('ice-candidate', handleIceCandidate);
+            socket.off('call-answer', handleCallAnswer);
+            socket.off('call-ended', handleCallEnded);
+        };
+    }, [socket, videoCall.callId, videoCall.peerConnection]);
+
+    return (
+        <VideoCallContext.Provider value={{
+            videoCall,
+            startCall,
+            endCall,
+            toggleMute,
+            toggleVideo,
+            incomingCall,
+            acceptCall,
+            rejectCall
+        }}>
+            {children}
+        </VideoCallContext.Provider>
+    );
+};
+
+// Custom Hooks
+export const useSocket = () => useContext(SocketContext);
+export const useVideoCall = () => useContext(VideoCallContext);
+
+// Video Call Modal Component
+interface VideoCallModalProps {
+    videoCall: VideoCallState;
+    onEndCall: () => void;
+    onToggleMute: () => void;
+    onToggleVideo: () => void;
+}
+
+const VideoCallModal: React.FC<VideoCallModalProps> = ({
+    videoCall,
+    onEndCall,
+    onToggleMute,
+    onToggleVideo
+}) => {
+    const localVideoRef = useRef<HTMLVideoElement>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (localVideoRef.current && videoCall.localStream) {
+            localVideoRef.current.srcObject = videoCall.localStream;
+        }
+        return () => {
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = null;
+            }
+        };
+    }, [videoCall.localStream]);
+
+    useEffect(() => {
+        if (remoteVideoRef.current && videoCall.remoteStream) {
+            remoteVideoRef.current.srcObject = videoCall.remoteStream;
+        }
+        return () => {
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = null;
+            }
+        };
+    }, [videoCall.remoteStream]);
+
+    if (!videoCall.isInCall) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">
+                        {videoCall.callStatus === 'calling' ? 'Calling...' :
+                            videoCall.callStatus === 'ringing' ? 'Incoming Call' :
+                                `Video Call with ${videoCall.callerInfo?.name || 'Participant'}`}
+                    </h2>
+                    <Button variant="destructive" onClick={onEndCall}>
+                        End Call
+                    </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Remote Video */}
+                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
+                        {videoCall.remoteStream ? (
+                            <video
+                                ref={remoteVideoRef}
+                                autoPlay
+                                playsInline
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-center">
+                                    <User className="w-12 h-12 mx-auto text-slate-400" />
+                                    <p className="text-slate-500 mt-2">
+                                        {videoCall.callStatus === 'calling' ? 'Waiting for answer...' :
+                                            videoCall.callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
+                            {videoCall.callerInfo?.name || 'Participant'}
+                        </div>
+                    </div>
+
+                    {/* Local Video */}
+                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
+                        {videoCall.localStream ? (
+                            <video
+                                ref={localVideoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <User className="w-12 h-12 text-slate-400" />
+                            </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
+                            You
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center space-x-4">
+                    <Button
+                        variant={videoCall.isMuted ? "destructive" : "secondary"}
+                        size="lg"
+                        onClick={onToggleMute}
+                    >
+                        {videoCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                    </Button>
+                    <Button
+                        variant={videoCall.isVideoOff ? "destructive" : "secondary"}
+                        size="lg"
+                        onClick={onToggleVideo}
+                    >
+                        {videoCall.isVideoOff ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+                    </Button>
+                    <Button variant="destructive" size="lg" onClick={onEndCall}>
+                        <Phone className="w-5 h-5" />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Incoming Call Dialog Component
+const IncomingCallDialog: React.FC<{
+    incomingCall: IncomingCall | null;
+    onAccept: () => void;
+    onReject: () => void;
+}> = ({ incomingCall, onAccept, onReject }) => {
+    if (!incomingCall) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="p-6 max-w-sm mx-4">
+                <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center space-x-2">
+                        <Phone className="w-6 h-6 text-green-500" />
+                        <span>Incoming Video Call</span>
+                    </CardTitle>
+                    <CardDescription>
+                        {incomingCall.fromName} is calling you
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex space-x-4">
+                    <Button
+                        onClick={onAccept}
+                        className="flex-1 bg-green-500 hover:bg-green-600"
+                    >
+                        <Phone className="w-4 h-4 mr-2" />
+                        Accept
+                    </Button>
+                    <Button
+                        onClick={onReject}
+                        variant="destructive"
+                        className="flex-1"
+                    >
+                        <X className="w-4 h-4 mr-2" />
+                        Reject
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
+
+// Chat Modal Component
+const ChatModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    messages: ChatMessage[];
+    newMessage: string;
+    setNewMessage: (message: string) => void;
+    onSendMessage: () => void;
+    participantName: string;
+    onTyping?: (isTyping: boolean) => void;
+    isParticipantTyping?: boolean;
+}> = ({
+    isOpen,
+    onClose,
+    messages,
+    newMessage,
+    setNewMessage,
+    onSendMessage,
+    participantName,
+    onTyping,
+    isParticipantTyping = false
+}) => {
+        if (!isOpen) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg w-full max-w-md mx-4 h-96 flex flex-col">
+                    <div className="flex items-center justify-between p-4 border-b">
+                        <h3 className="text-lg font-medium">Chat with {participantName}</h3>
+                        <Button variant="ghost" size="sm" onClick={onClose}>
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        {messages.map((message) => (
+                            <div key={message.id} className="flex flex-col">
+                                <div className="text-xs text-slate-500 mb-1">
+                                    {message.senderName} • {new Date(message.timestamp).toLocaleTimeString()}
+                                </div>
+                                <div className="bg-slate-100 rounded-lg p-2 text-sm">
+                                    {message.message}
+                                    {message.isRead && (
+                                        <div className="text-xs text-slate-400 mt-1">✓ Seen</div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+
+                        {isParticipantTyping && (
+                            <div className="flex flex-col">
+                                <div className="text-xs text-slate-500 mb-1">{participantName}</div>
+                                <div className="bg-slate-200 rounded-lg p-2 text-sm italic text-slate-600">
+                                    typing...
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-4 border-t">
+                        <div className="flex space-x-2">
+                            <Input
+                                value={newMessage}
+                                onChange={(e) => {
+                                    setNewMessage(e.target.value);
+                                    if (onTyping) {
+                                        onTyping(e.target.value.length > 0);
+                                    }
+                                }}
+                                placeholder="Type a message..."
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                        onSendMessage();
+                                        if (onTyping) onTyping(false);
+                                    }
+                                }}
+                                onBlur={() => {
+                                    if (onTyping) onTyping(false);
+                                }}
+                            />
+                            <Button onClick={() => {
+                                onSendMessage();
+                                if (onTyping) onTyping(false);
+                            }}>
+                                <Send className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+// Main VideoConsult Component
 const VideoConsult = () => {
     const { session, loading: authLoading } = useAuth();
     const { toast } = useToast();
+    const { socket } = useSocket();
+    const {
+        videoCall,
+        startCall: startVideoCall,
+        endCall,
+        toggleMute,
+        toggleVideo,
+        incomingCall,
+        acceptCall,
+        rejectCall
+    } = useVideoCall();
 
-    // User role from session
     const userRole = session?.user?.role;
     const isAdvocate = userRole && ['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(userRole);
     const isRegularUser = userRole === 'REGULAR_USER';
@@ -133,7 +816,6 @@ const VideoConsult = () => {
     const [selectedSpecialization, setSelectedSpecialization] = useState('all');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [socket, setSocket] = useState<Socket | null>(null);
     const [advocates, setAdvocates] = useState<Lawyer[]>([]);
     const [userOnlineStatus, setUserOnlineStatus] = useState<{ [key: string]: boolean }>({});
 
@@ -149,7 +831,6 @@ const VideoConsult = () => {
             hourly_rate: 1000,
             languages: '',
         },
-        mode: 'onSubmit', // Only validate on submit
     });
 
     // Payment states
@@ -179,30 +860,9 @@ const VideoConsult = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>({});
 
-    // Video call states
-    const [videoCall, setVideoCall] = useState<VideoCallState>({
-        isInCall: false,
-        callId: null,
-        localStream: null,
-        remoteStream: null,
-        isMuted: false,
-        isVideoOff: false,
-        isConnected: false,
-        participantName: ''
-    });
-    const [incomingCall, setIncomingCall] = useState<{
-        callId: string;
-        from: string;
-        fromName: string;
-    } | null>(null);
-
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement>(null);
-    const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-
     const specializations = ['all', 'Corporate Law', 'Criminal Law', 'Family Law', 'Constitutional Law', 'Civil Law'];
 
-    // Fetch advocates, profile, and requests when session is available
+    // Fetch data
     useEffect(() => {
         const fetchAllData = async () => {
             if (!authLoading && session) {
@@ -215,7 +875,6 @@ const VideoConsult = () => {
         };
 
         fetchAllData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, authLoading, isAdvocate]);
 
     const fetchAdvocates = async () => {
@@ -231,13 +890,9 @@ const VideoConsult = () => {
             if (response.ok) {
                 const data = await response.json();
                 setAdvocates(data.advocates || []);
-
-                // After advocates are loaded, request online status for all
                 if (socket) {
                     socket.emit('get-online-users');
                 }
-
-                console.log('📋 Loaded advocates:', data.advocates?.map((a: Lawyer) => ({ id: a.id, name: a.name })));
             }
         } catch (error) {
             console.error('Error fetching advocates:', error);
@@ -286,40 +941,19 @@ const VideoConsult = () => {
         }
     };
 
-    // Initialize mock data
-    useEffect(() => {
-        // Remove mock data initialization - now using real data from API
-    }, []);
-
-    // Initialize socket connection
+    // Socket effects
     useEffect(() => {
         if (!session) return;
 
-        const newSocket = io('/', {
-            path: '/api/socket'
-        });
-        setSocket(newSocket);
-
-        // Join user to their room for real-time updates
-        newSocket.emit('join-room', session.user.id);
-
-        // Emit that user is online
-        newSocket.emit('user-online', { userId: session.user.id, isOnline: true });
-
-        // Request current online users list
-        newSocket.emit('get-online-users');
-
-        // Handle initial online users list
-        newSocket.on('online-users-list', (onlineUserIds: string[]) => {
-            console.log('📡 Received online users list:', onlineUserIds);
+        const handleOnlineUsers = (onlineUserIds: string[]) => {
             const statusMap: { [key: string]: boolean } = {};
             onlineUserIds.forEach(userId => {
                 statusMap[userId] = true;
             });
             setUserOnlineStatus(prev => ({ ...prev, ...statusMap }));
-        });
+        };
 
-        newSocket.on('consultation-request', (request: ConsultationRequest) => {
+        const handleConsultationRequest = (request: ConsultationRequest) => {
             if (isAdvocate) {
                 setConsultationRequests(prev => [...prev, request]);
                 toast({
@@ -327,9 +961,9 @@ const VideoConsult = () => {
                     description: `${request.clientName} has requested a consultation.`,
                 });
             }
-        });
+        };
 
-        newSocket.on('request-approved', (request: ConsultationRequest) => {
+        const handleRequestApproved = (request: ConsultationRequest) => {
             if (!isAdvocate) {
                 setClientRequests(prev => prev.map(r => r.id === request.id ? request : r));
                 toast({
@@ -337,158 +971,49 @@ const VideoConsult = () => {
                     description: `Your consultation with ${request.advocateName} has been approved.`,
                 });
             }
-        });
-
-        newSocket.on('chat-message', (message: ChatMessage) => {
-            setChatMessages(prev => [...prev, message]);
-            // Mark message as seen if chat is open
-            if (activeChat === message.senderId) {
-                newSocket.emit('message-seen', message.id);
-            }
-        });
-
-        newSocket.on('user-typing', (data: { userId: string, isTyping: boolean }) => {
-            setTypingUsers(prev => ({ ...prev, [data.userId]: data.isTyping }));
-        });
-
-        newSocket.on('user-online', (data: { userId: string, isOnline: boolean }) => {
-            setUserOnlineStatus(prev => ({ ...prev, [data.userId]: data.isOnline }));
-        });
-
-        newSocket.on('online-users-list', (onlineUsers: string[]) => {
-            const onlineStatus: { [key: string]: boolean } = {};
-            onlineUsers.forEach(userId => {
-                onlineStatus[userId] = true;
-            });
-            // Set all advocates as online if they're in the online users list
-            advocates.forEach(advocate => {
-                onlineStatus[advocate.id] = onlineUsers.includes(advocate.id);
-            });
-            setUserOnlineStatus(onlineStatus);
-        });
-
-        newSocket.on('video-call-incoming', (data: { callId: string, from: string, fromName: string }) => {
-            setIncomingCall({
-                callId: data.callId,
-                from: data.from,
-                fromName: data.fromName
-            });
-            toast({
-                title: "Incoming Video Call",
-                description: `${data.fromName} is calling you`,
-                action: (
-                    <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleAcceptCall(data.callId, data.from, data.fromName)}>
-                            Accept
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleRejectCall(data.callId)}>
-                            Reject
-                        </Button>
-                    </div>
-                ),
-            });
-        });
-
-        // Handle disconnection
-        const handleBeforeUnload = () => {
-            newSocket.emit('user-online', { userId: session.user.id, isOnline: false });
         };
 
-        // Heartbeat to maintain online status
-        const heartbeatInterval = setInterval(() => {
-            if (newSocket.connected) {
-                newSocket.emit('user-online', { userId: session.user.id, isOnline: true });
+        const handleChatMessage = (message: ChatMessage) => {
+            setChatMessages(prev => [...prev, message]);
+            if (activeChat === message.senderId) {
+                socket?.emit('message-seen', message.id);
             }
-        }, 30000); // Every 30 seconds
+        };
 
-        window.addEventListener('beforeunload', handleBeforeUnload);
+        const handleUserTyping = (data: { userId: string, isTyping: boolean }) => {
+            setTypingUsers(prev => ({ ...prev, [data.userId]: data.isTyping }));
+        };
+
+        const handleUserOnline = (data: { userId: string, isOnline: boolean }) => {
+            setUserOnlineStatus(prev => ({ ...prev, [data.userId]: data.isOnline }));
+        };
+
+        if (socket) {
+            socket.on('online-users-list', handleOnlineUsers);
+            socket.on('consultation-request', handleConsultationRequest);
+            socket.on('request-approved', handleRequestApproved);
+            socket.on('chat-message', handleChatMessage);
+            socket.on('user-typing', handleUserTyping);
+            socket.on('user-online', handleUserOnline);
+        }
 
         return () => {
-            clearInterval(heartbeatInterval);
-            newSocket.emit('user-online', { userId: session.user.id, isOnline: false });
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            newSocket.close();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, isAdvocate, activeChat, toast, advocates]);
-
-    // Initialize WebRTC peer connection
-    const initializePeerConnection = () => {
-        const configuration = {
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-        };
-
-        const peerConnection = new RTCPeerConnection(configuration);
-
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate && socket) {
-                socket.emit('ice-candidate', event.candidate);
+            if (socket) {
+                socket.off('online-users-list', handleOnlineUsers);
+                socket.off('consultation-request', handleConsultationRequest);
+                socket.off('request-approved', handleRequestApproved);
+                socket.off('chat-message', handleChatMessage);
+                socket.off('user-typing', handleUserTyping);
+                socket.off('user-online', handleUserOnline);
             }
         };
-
-        peerConnection.ontrack = (event) => {
-            setVideoCall(prev => ({ ...prev, remoteStream: event.streams[0] }));
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-            }
-        };
-
-        return peerConnection;
-    };
+    }, [socket, isAdvocate, activeChat, toast]);
 
     const filteredAdvocates = advocates.filter((advocate: Lawyer) =>
         selectedSpecialization === 'all' || advocate.specialization === selectedSpecialization
     );
 
     // Call handler functions
-    const handleAcceptCall = async (callId: string, from: string, fromName: string) => {
-        try {
-            setIncomingCall(null);
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-
-            setVideoCall(prev => ({
-                ...prev,
-                isInCall: true,
-                callId,
-                localStream: stream,
-                participantName: fromName
-            }));
-
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-
-            const peerConnection = initializePeerConnection();
-            peerConnectionRef.current = peerConnection;
-
-            stream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, stream);
-            });
-
-            if (socket) {
-                socket.emit('accept-call', { callId, from });
-            }
-        } catch (error) {
-            console.error('Error accepting call:', error);
-            toast({
-                title: "Error",
-                description: "Failed to accept call. Please check your camera and microphone permissions.",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleRejectCall = (callId: string) => {
-        setIncomingCall(null);
-        if (socket) {
-            socket.emit('reject-call', { callId });
-        }
-    };
-
-    // Handler functions
     const handleBookConsultation = async (lawyer: Lawyer) => {
         try {
             setLoading(true);
@@ -528,9 +1053,6 @@ const VideoConsult = () => {
     const handlePayment = async (requestId: string) => {
         try {
             setLoading(true);
-            // Amount is provided by the UI but we get it from the API response instead
-
-            // Create fake payment session
             const paymentResponse = await fetch('/api/payment/create', {
                 method: 'POST',
                 headers: {
@@ -538,14 +1060,12 @@ const VideoConsult = () => {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    request_id: requestId, // Fixed parameter name
+                    request_id: requestId,
                 }),
             });
 
             if (paymentResponse.ok) {
                 const payment = await paymentResponse.json();
-
-                // Set payment data and show the fake payment form
                 setPaymentData({
                     sessionId: payment.session_id,
                     amount: payment.amount,
@@ -581,7 +1101,6 @@ const VideoConsult = () => {
             title: "Payment Successful! 🎉",
             description: `Payment completed successfully. Transaction ID: ${transactionId}`,
         });
-        // Refresh consultation requests by updating the payment status
         setClientRequests(prev => prev.map(r =>
             r.id === paymentData?.requestId
                 ? { ...r, paymentStatus: 'paid' as const }
@@ -650,9 +1169,8 @@ const VideoConsult = () => {
         }
     };
 
-    const handleStartVideoCall = async (participantId: string, participantName: string) => {
+    const handleStartCall = async (participantId: string, participantName: string) => {
         try {
-            // Check if user has paid for consultation with this participant
             let hasPaidConsultation = false;
             if (isAdvocate) {
                 hasPaidConsultation = consultationRequests.some(
@@ -673,7 +1191,6 @@ const VideoConsult = () => {
                 return;
             }
 
-            // Check if participant is online
             const isParticipantOnline = userOnlineStatus[participantId];
             if (!isParticipantOnline) {
                 toast({
@@ -681,7 +1198,6 @@ const VideoConsult = () => {
                     description: `${participantName} is currently offline. They will be notified of your call attempt.`,
                 });
 
-                // Send notification to offline user
                 if (socket) {
                     socket.emit('call-attempt-notification', {
                         targetUserId: participantId,
@@ -692,42 +1208,7 @@ const VideoConsult = () => {
                 return;
             }
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-
-            setVideoCall(prev => ({
-                ...prev,
-                isInCall: true,
-                localStream: stream,
-                participantName
-            }));
-
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-
-            const peerConnection = initializePeerConnection();
-            peerConnectionRef.current = peerConnection;
-
-            stream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, stream);
-            });
-
-            const callId = `call_${Date.now()}`;
-            if (socket) {
-                socket.emit('start-video-call', {
-                    callId,
-                    participantId,
-                    participantName,
-                    callerId: session?.user?.id,
-                    callerName: session?.user?.name || 'Unknown'
-                });
-            }
-
-            setVideoCall(prev => ({ ...prev, callId }));
-
+            startVideoCall(participantId, participantName);
         } catch (error) {
             console.error('Video call error:', error);
             toast({
@@ -735,51 +1216,6 @@ const VideoConsult = () => {
                 description: "Failed to start video call. Please check your camera and microphone permissions.",
                 variant: "destructive",
             });
-        }
-    };
-
-    const handleEndCall = () => {
-        if (videoCall.localStream) {
-            videoCall.localStream.getTracks().forEach(track => track.stop());
-        }
-
-        if (peerConnectionRef.current) {
-            peerConnectionRef.current.close();
-        }
-
-        setVideoCall({
-            isInCall: false,
-            callId: null,
-            localStream: null,
-            remoteStream: null,
-            isMuted: false,
-            isVideoOff: false,
-            isConnected: false,
-            participantName: ''
-        });
-
-        if (socket) {
-            socket.emit('end-video-call', { callId: videoCall.callId });
-        }
-    };
-
-    const toggleMute = () => {
-        if (videoCall.localStream) {
-            const audioTrack = videoCall.localStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setVideoCall(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
-            }
-        }
-    };
-
-    const toggleVideo = () => {
-        if (videoCall.localStream) {
-            const videoTrack = videoCall.localStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setVideoCall(prev => ({ ...prev, isVideoOff: !videoTrack.enabled }));
-            }
         }
     };
 
@@ -802,7 +1238,6 @@ const VideoConsult = () => {
     };
 
     const handleStartChat = (participantId: string) => {
-        // Check if user has paid for consultation with this participant
         let hasPaidConsultation = false;
         if (isAdvocate) {
             hasPaidConsultation = consultationRequests.some(
@@ -829,7 +1264,6 @@ const VideoConsult = () => {
 
     const handleCreateProfile = async (data: AdvocateProfileFormData) => {
         try {
-            // Validate required fields
             if (!data.specialization || !data.bio || !data.education || !data.certifications || !data.languages) {
                 toast({
                     title: "Validation Error",
@@ -861,7 +1295,6 @@ const VideoConsult = () => {
                     title: "Profile Created",
                     description: "Your advocate profile has been created successfully.",
                 });
-                // Don't call fetchAdvocateProfile here as we already have the profile
             } else {
                 const errorData = await response.json();
                 console.error('🔴 Profile creation failed:', errorData);
@@ -936,7 +1369,7 @@ const VideoConsult = () => {
                             specializations={specializations}
                             onBookConsultation={handleBookConsultation}
                             onStartChat={handleStartChat}
-                            onStartVideoCall={handleStartVideoCall}
+                            onStartVideoCall={handleStartCall}
                             onPayment={handlePayment}
                             clientRequests={clientRequests}
                             loading={loading}
@@ -951,7 +1384,7 @@ const VideoConsult = () => {
                             onApproveRequest={handleApproveRequest}
                             onRejectRequest={handleRejectRequest}
                             onStartChat={handleStartChat}
-                            onStartVideoCall={handleStartVideoCall}
+                            onStartVideoCall={handleStartCall}
                             onCreateProfile={handleCreateProfile}
                             isProfileDialogOpen={isProfileDialogOpen}
                             setIsProfileDialogOpen={setIsProfileDialogOpen}
@@ -976,9 +1409,7 @@ const VideoConsult = () => {
                     {videoCall.isInCall && (
                         <VideoCallModal
                             videoCall={videoCall}
-                            localVideoRef={localVideoRef}
-                            remoteVideoRef={remoteVideoRef}
-                            onEndCall={handleEndCall}
+                            onEndCall={endCall}
                             onToggleMute={toggleMute}
                             onToggleVideo={toggleVideo}
                         />
@@ -1017,36 +1448,11 @@ const VideoConsult = () => {
 
                     {/* Incoming Call Notification */}
                     {incomingCall && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <Card className="p-6 max-w-sm mx-4">
-                                <CardHeader className="text-center">
-                                    <CardTitle className="flex items-center justify-center space-x-2">
-                                        <Phone className="w-6 h-6 text-green-500" />
-                                        <span>Incoming Call</span>
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {incomingCall.fromName} is calling you
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex space-x-4">
-                                    <Button
-                                        onClick={() => handleAcceptCall(incomingCall.callId, incomingCall.from, incomingCall.fromName)}
-                                        className="flex-1 bg-green-500 hover:bg-green-600"
-                                    >
-                                        <Phone className="w-4 h-4 mr-2" />
-                                        Accept
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleRejectCall(incomingCall.callId)}
-                                        variant="destructive"
-                                        className="flex-1"
-                                    >
-                                        <X className="w-4 h-4 mr-2" />
-                                        Reject
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <IncomingCallDialog
+                            incomingCall={incomingCall}
+                            onAccept={acceptCall}
+                            onReject={rejectCall}
+                        />
                     )}
                 </div>
             </div>
@@ -1187,23 +1593,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 </Card>
             )}
 
-            {/* Debug Online Status - Remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-                <Card className="mb-4 bg-yellow-50 border-yellow-200">
-                    <CardContent className="p-4">
-                        <h3 className="text-sm font-medium text-yellow-800 mb-2">Debug: Online Status</h3>
-                        <div className="text-xs text-yellow-700">
-                            <p>Online Users: {JSON.stringify(userOnlineStatus)}</p>
-                            <p>Advocates: {lawyers.map(l => `${l.name}(${l.id})`).join(', ')}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
             {/* Lawyers Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {lawyers.map((lawyer) => {
-                    // Check if user has paid consultation with this lawyer
                     const paidConsultation = clientRequests.find(
                         req => req.advocateId === lawyer.id && req.paymentStatus === 'paid'
                     );
@@ -1762,7 +2154,6 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                             <div className="mt-6 flex gap-4">
                                 <Button
                                     onClick={() => {
-                                        // Populate form with current values
                                         advocateForm.reset({
                                             specialization: Array.isArray(profile.specialization) ?
                                                 profile.specialization[0] : profile.specialization || '',
@@ -1803,7 +2194,7 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                                             onSubmit={(e) => {
                                                 e.preventDefault();
                                                 advocateForm.handleSubmit((data) => {
-                                                    onCreateProfile(data); // This will act as update
+                                                    onCreateProfile(data);
                                                     setIsUpdateDialogOpen(false);
                                                 })(e);
                                             }}
@@ -1997,182 +2388,6 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                             </Dialog>
                         </div>
                     )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Video Call Modal Component
-interface VideoCallModalProps {
-    videoCall: VideoCallState;
-    localVideoRef: React.RefObject<HTMLVideoElement | null>;
-    remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
-    onEndCall: () => void;
-    onToggleMute: () => void;
-    onToggleVideo: () => void;
-}
-
-const VideoCallModal: React.FC<VideoCallModalProps> = ({
-    videoCall,
-    localVideoRef,
-    remoteVideoRef,
-    onEndCall,
-    onToggleMute,
-    onToggleVideo
-}) => {
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold">Video Call with {videoCall.participantName}</h2>
-                    <Button variant="destructive" onClick={onEndCall}>
-                        End Call
-                    </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
-                        <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                            {videoCall.participantName}
-                        </div>
-                    </div>
-
-                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                            You
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-center space-x-4">
-                    <Button
-                        variant={videoCall.isMuted ? "destructive" : "secondary"}
-                        size="lg"
-                        onClick={onToggleMute}
-                    >
-                        {videoCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    </Button>
-                    <Button
-                        variant={videoCall.isVideoOff ? "destructive" : "secondary"}
-                        size="lg"
-                        onClick={onToggleVideo}
-                    >
-                        {videoCall.isVideoOff ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-                    </Button>
-                    <Button variant="destructive" size="lg" onClick={onEndCall}>
-                        <Phone className="w-5 h-5" />
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Chat Modal Component
-interface ChatModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    messages: ChatMessage[];
-    newMessage: string;
-    setNewMessage: (message: string) => void;
-    onSendMessage: () => void;
-    participantName: string;
-    onTyping?: (isTyping: boolean) => void;
-    isParticipantTyping?: boolean;
-}
-
-const ChatModal: React.FC<ChatModalProps> = ({
-    isOpen,
-    onClose,
-    messages,
-    newMessage,
-    setNewMessage,
-    onSendMessage,
-    participantName,
-    onTyping,
-    isParticipantTyping = false
-}) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg w-full max-w-md mx-4 h-96 flex flex-col">
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="text-lg font-medium">Chat with {participantName}</h3>
-                    <Button variant="ghost" size="sm" onClick={onClose}>
-                        <X className="w-4 h-4" />
-                    </Button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {messages.map((message) => (
-                        <div key={message.id} className="flex flex-col">
-                            <div className="text-xs text-slate-500 mb-1">
-                                {message.senderName} • {new Date(message.timestamp).toLocaleTimeString()}
-                            </div>
-                            <div className="bg-slate-100 rounded-lg p-2 text-sm">
-                                {message.message}
-                                {message.isRead && (
-                                    <div className="text-xs text-slate-400 mt-1">✓ Seen</div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-
-                    {/* Typing indicator */}
-                    {isParticipantTyping && (
-                        <div className="flex flex-col">
-                            <div className="text-xs text-slate-500 mb-1">{participantName}</div>
-                            <div className="bg-slate-200 rounded-lg p-2 text-sm italic text-slate-600">
-                                typing...
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="p-4 border-t">
-                    <div className="flex space-x-2">
-                        <Input
-                            value={newMessage}
-                            onChange={(e) => {
-                                setNewMessage(e.target.value);
-                                // Trigger typing indicator
-                                if (onTyping) {
-                                    onTyping(e.target.value.length > 0);
-                                }
-                            }}
-                            placeholder="Type a message..."
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    onSendMessage();
-                                    if (onTyping) onTyping(false);
-                                }
-                            }}
-                            onBlur={() => {
-                                if (onTyping) onTyping(false);
-                            }}
-                        />
-                        <Button onClick={() => {
-                            onSendMessage();
-                            if (onTyping) onTyping(false);
-                        }}>
-                            <Send className="w-4 h-4" />
-                        </Button>
-                    </div>
                 </div>
             </div>
         </div>
