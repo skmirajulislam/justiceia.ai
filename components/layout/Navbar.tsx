@@ -4,7 +4,7 @@ import { Search, Menu, X, Scale, User, FileText, Video, Brain, LogIn, LogOut, Se
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -110,7 +110,7 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2">
                     <UserCircle className="w-5 h-5" />
-                    <span>{profile?.first_name || session.user.name || 'Profile'}</span>
+                    <span>{profile?.first_name || session.user.name || 'Profile'} {profile?.last_name || session.user.name || 'Profile'}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
