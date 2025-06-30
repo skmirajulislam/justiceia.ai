@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
                 role: true
             }
         });
-
+        
         if (!profile) {
             return NextResponse.json(
                 { error: 'User not found' },

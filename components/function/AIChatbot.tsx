@@ -240,13 +240,15 @@ const AIChatbot = () => {
         return null;
     }
 
+    // ...existing code...
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
             <Navbar />
-            <div className="pt-24 px-4 py-8">
-                <div className="max-w-4xl mx-auto">
-                    <Card className="h-[calc(100vh-12rem)] flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between">
+            <div className="pt-20 sm:pt-24 px-2 sm:px-4 py-4 sm:py-8">
+                <div className="max-w-4xl mx-auto w-full">
+                    <Card className="h-[calc(100vh-8rem)] sm:h-[calc(100vh-12rem)] flex flex-col">
+                        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div className="flex items-center space-x-2">
                                 <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
                                     <Scale className="w-6 h-6 text-white" />
@@ -261,7 +263,7 @@ const AIChatbot = () => {
                                     </CardDescription>
                                 </div>
                             </div>
-                            <div className="flex space-x-2">
+                            <div className="flex flex-wrap gap-2">
                                 <Button variant="outline" size="sm" onClick={clearChat}>
                                     Clear Chat
                                 </Button>
@@ -304,7 +306,7 @@ const AIChatbot = () => {
                         ) : (
                             <>
                                 <CardContent className="flex-1 p-0 overflow-hidden">
-                                    <ScrollArea className="h-full px-6" ref={chatContainerRef}>
+                                    <ScrollArea className="h-full px-1 sm:px-6" ref={chatContainerRef}>
                                         <div className="space-y-4 py-4">
                                             {messages.map((message) => (
                                                 <div
@@ -312,7 +314,7 @@ const AIChatbot = () => {
                                                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                                 >
                                                     <div
-                                                        className={`flex max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                                                        className={`flex max-w-[98%] xs:max-w-[90%] sm:max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                                                             } items-start space-x-2`}
                                                     >
                                                         <div
@@ -328,10 +330,11 @@ const AIChatbot = () => {
                                                             )}
                                                         </div>
                                                         <div
-                                                            className={`rounded-lg px-4 py-2 ${message.role === 'user'
+                                                            className={`rounded-lg px-3 py-2 sm:px-4 sm:py-2 break-words ${message.role === 'user'
                                                                 ? 'bg-sky-500 text-white'
                                                                 : 'bg-white border border-slate-200 text-slate-800'
                                                                 }`}
+                                                            style={{ wordBreak: 'break-word' }}
                                                         >
                                                             <MessageContent content={message.content} />
                                                             <span className="text-xs opacity-70 mt-1 block">
@@ -343,7 +346,7 @@ const AIChatbot = () => {
                                             ))}
                                             {isLoading && (
                                                 <div className="flex justify-start">
-                                                    <div className="flex items-start space-x-2 max-w-[80%]">
+                                                    <div className="flex items-start space-x-2 max-w-[98%] xs:max-w-[90%] sm:max-w-[80%]">
                                                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center mr-2">
                                                             <Bot className="w-4 h-4" />
                                                         </div>
@@ -362,8 +365,8 @@ const AIChatbot = () => {
                                     </ScrollArea>
                                 </CardContent>
 
-                                <div className="p-6 border-t border-slate-200">
-                                    <div className="flex space-x-2">
+                                <div className="p-2 xs:p-3 sm:p-6 border-t border-slate-200">
+                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                         <Input
                                             value={inputMessage}
                                             onChange={(e) => setInputMessage(e.target.value)}
