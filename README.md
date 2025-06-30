@@ -1,4 +1,4 @@
-# Justiceia.ai
+# Justiceia.ai ⚖️
 
 Justiceia.ai is an innovative, real-time legal consultation platform developed during the Hexafalls Hackathon (36-hour event organized by JIS University). The project was built by a dedicated team with a shared vision of making legal support accessible, transparent, and efficient across India.
 
