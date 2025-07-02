@@ -167,13 +167,5 @@ This project is built with **TypeScript** and uses **Prisma** as its ORM.
 - Integration with government and court databases for streamlined case management.
 - More robust moderation tools for content and user management.
 
----
-
-## Acknowledgements
-
-- **Hexafalls Hackathon, JIS University** — for providing the platform and opportunity.
-- All mentors, judges, and participants for their insights and encouragement.
-
----
 
 > Justiceia.ai — Making justice accessible, transparent, and efficient for all.
