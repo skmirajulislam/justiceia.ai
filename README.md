@@ -17,7 +17,7 @@
   <p>
   <p>
   <a href="https://github.com/Symbiote07">
-  <img src="https://raw.githubusercontent.com/devSouvik/devSouvik/master/gif3.gif" alt=Aryanshukla/>
+  <img src="https://media.licdn.com/dms/image/v2/D5622AQH897vj4wBvaQ/feedshare-shrink_1280/B56ZfGy6ytH8Ak-/0/1751386926985?e=1754524800&v=beta&t=-zCUJ8GPP-c114tNAuTadW3roHXXAfYKQOEQYo5aWRU" alt=Aryanshukla/>
   <p>
    <img height=40 src="https://skillicons.dev/icons?i=html,css,js,react,firebase,nodejs,bootstrap">
 </div>
