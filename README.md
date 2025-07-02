@@ -1,4 +1,27 @@
-# Justiceia.ai ⚖️
+<div align="center">
+ <h1 align="center" style="display: block; font-size: 3em; font-weight: bold; margin-block-end: 1em;"><strong>🎉 Welcome to the Justiceia.ai Platform! 🌟</strong></h1>
+ <p align="center">              
+  <img  src="https://readme-typing-svg.herokuapp.com?color=45ffaa&size=40&width=900&height=80&lines=Welcome-to-Justiceia.ai-Platform"/>
+</p>
+  <p align="center"> Justiceia.ai is an innovative, <b>Real-time legal consultation platform developed during the Hexafalls Hackathon!</b> 🚀</p>
+  <p>
+    <img src="https://img.shields.io/github/stars/skmirajulislam/justiceia.ai?style=social"/>
+    <img src="https://img.shields.io/github/forks/skmirajulislam/justiceia.ai?style=social"/>
+    <img src="https://img.shields.io/github/watchers/skmirajulislam/justiceia.ai?style=social"/>
+  <p>
+    <a href="https://github.com/Vin205/Enyanjyoti/issues"><img src="https://custom-icon-badges.demolab.com/github/issues/skmirajulislam/justiceia.ai?label=Issues&labelColor=302d41&color=FF6347&logoColor=FF6347&logo=issue&style=for-the-badge" alt="GitHub Readme Profile Issues"/></a>
+    <a href="https://github.com/skmirajulislam/justiceia.ai/pull"><img src="https://custom-icon-badges.demolab.com/github/issues-pr/skmirajulislam/justiceia.ai?&label=Pull%20requests&labelColor=302d41&color=98FF98&logoColor=98FF98&logo=git-pull-request&style=for-the-badge" alt="GitHub Readme Profile PRs"/></a>
+    <a href="https://github.com/skmirajulislam/justiceia.ai/graphs/contributors"><img src="https://custom-icon-badges.demolab.com/github/contributors/skmirajulislam/justiceia.ai?label=Contributors&labelColor=302d41&color=c9cbff&logoColor=d9e0ee&logo=people&style=for-the-badge"/></a>
+  <p>
+    <img src="http://forthebadge.com/images/badges/license-mit.svg"/>
+  <p>
+  <p>
+  <a href="https://github.com/Symbiote07">
+  <img src="https://raw.githubusercontent.com/devSouvik/devSouvik/master/gif3.gif" alt=Aryanshukla/>
+  <p>
+   <img height=40 src="https://skillicons.dev/icons?i=html,css,js,react,firebase,nodejs,bootstrap">
+</div>
+
 
 Justiceia.ai is an innovative, real-time legal consultation platform developed during the Hexafalls Hackathon (36-hour event organized by JIS University). The project was built by a dedicated team with a shared vision of making legal support accessible, transparent, and efficient across India.
 
