@@ -27,7 +27,7 @@ const HeroSection = () => {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-xl sm:text-2xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed">
 
           Your intelligent legal companion for document drafting, real-time translation, case research, and secure access to verified advocates across India.
         </p>
@@ -37,7 +37,7 @@ const HeroSection = () => {
           {['IPC Section 420', 'Property Law', 'Family Court', 'Corporate Law'].map((suggestion) => (
             <button
               key={suggestion}
-              className="px-4 py-2 bg-white/70 backdrop-blur-sm border border-slate-200 rounded-full text-slate-600 hover:text-sky-600 hover:border-sky-300 transition-all duration-200 hover:scale-105"
+              className="px-4 py-2 bg-white/70 backdrop-blur-sm border border-slate-200 rounded-full text-slate-600"
             >
               {suggestion}
             </button>

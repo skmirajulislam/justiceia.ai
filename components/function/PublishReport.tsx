@@ -411,7 +411,7 @@ const PublishReport = () => {
                                                                 <SelectValue placeholder="Select a category" />
                                                             </SelectTrigger>
                                                         </FormControl>
-                                                        <SelectContent>
+                                                        <SelectContent className="max-h-60 overflow-auto">
                                                             {LEGAL_CATEGORIES.map((category) => (
                                                                 <SelectItem key={category} value={category}>
                                                                     {category}
