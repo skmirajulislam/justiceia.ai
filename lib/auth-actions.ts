@@ -3,7 +3,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
-import { prisma } from '@/integrations/client'
+import  prisma  from '@/lib/prisma'
 
 export async function loginAction(email: string, password: string) {
     try {
