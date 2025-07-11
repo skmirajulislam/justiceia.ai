@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/integrations/client';
 import { v2 as cloudinary } from 'cloudinary';
+import prisma from '@/lib/prisma';
 
 // Configure Cloudinary
 cloudinary.config({

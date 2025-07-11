@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from '@/integrations/client'
+import prisma from '@/lib/prisma'
 
 export async function getProfileAction(userId: string) {
     try {

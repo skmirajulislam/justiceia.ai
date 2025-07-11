@@ -12,7 +12,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.1.1",
-    "@prisma/client": "^6.10.1",
+    "@prisma/client": "^6.11.1",
     "@prisma/extension-accelerate": "^2.0.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -90,7 +90,7 @@
     "@types/react-dropzone": "^4.2.2",
     "eslint": "^9.30.0",
     "eslint-config-next": "15.3.4",
-    "prisma": "^6.10.1",
+    "prisma": "^6.11.1",
     "tailwindcss": "^4.1.11",
     "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.4",
