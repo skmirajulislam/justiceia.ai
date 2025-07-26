@@ -27,7 +27,7 @@ Justiceia.ai is an innovative, real-time legal consultation platform developed d
 ## Team Members
 
 - **SK Mirajul Islam** — Backend Developer | Machine Learning
-- **Joyita Bawal** — Frontend Developer
+- **Joyita Bhawal** — Frontend Developer
 - **Arnab Das** — Backend Developer
 - **Bhumi Prasad** — Frontend & UI Developer
 
