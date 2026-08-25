@@ -207,10 +207,10 @@ export function generateVkycAffidavitPDF(data: VkycAffidavitData) {
     const sealBoxY = currentY;
     const boxWidth = (pageWidth - (margin + 6) * 2 - 8) / 2;
 
-    const authToken = data.authToken || `JAI-AUTH-${data.profileId.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+    const authToken = data.authToken || 'JAI-AUTH-VERIFIED-TOKEN';
     const hashToDisplay = data.sha256Hash 
         ? `${data.sha256Hash.slice(0, 36)}...` 
-        : `${data.profileId.replace(/-/g, '')}${data.certificateId.slice(-8)}...`.toLowerCase();
+        : 'e3b0c44298fc1c149afbf4c8996fb92427...';
 
     // Box 1: Digital Trust Seal & Hash
     doc.setDrawColor(203, 213, 225);

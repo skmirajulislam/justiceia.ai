@@ -16,14 +16,13 @@ export async function GET(request: NextRequest) {
         const cleanQuery = query.trim();
         const upperQuery = cleanQuery.toUpperCase();
 
-        // 1. Direct search in vkyc_certificates table by certificate_id, auth_token, sha256_hash, or user_id
+        // 1. Direct search in vkyc_certificates table by certificate_id, auth_token, or sha256_hash
         let certificateRecord = await prisma.vkycCertificate.findFirst({
             where: {
                 OR: [
                     { certificate_id: { equals: upperQuery, mode: 'insensitive' } },
                     { auth_token: { equals: upperQuery, mode: 'insensitive' } },
                     { sha256_hash: { equals: cleanQuery, mode: 'insensitive' } },
-                    { user_id: cleanQuery }
                 ],
                 is_active: true,
             },
@@ -43,14 +42,11 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        // 2. If not found via direct certificate record, search via profile email or ID
+        // 2. If not found via direct certificate token, search via verified advocate email
         if (!certificateRecord) {
             const profile = await prisma.profile.findFirst({
                 where: {
-                    OR: [
-                        { email: { equals: cleanQuery, mode: 'insensitive' } },
-                        { id: cleanQuery }
-                    ],
+                    email: { equals: cleanQuery, mode: 'insensitive' },
                     vkyc_completed: true,
                 },
                 include: {

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 import { UserRole } from '@/app/generated/prisma'
 import { deleteUploadThingFiles } from '@/lib/uploadthingServer'
+import { getOrCreateVkycCertificate } from '@/lib/vkycCertificate'
 
 async function getAuthUserId(): Promise<string | null> {
     try {
@@ -65,6 +66,14 @@ export async function GET(
 
         if (!profile) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+        }
+
+        if (profile.vkyc_completed && !profile.vkycCertificate) {
+            const cert = await getOrCreateVkycCertificate(profile.id, profile.email, profile.vkyc_completed_at);
+            return NextResponse.json({
+                ...profile,
+                vkycCertificate: cert
+            });
         }
 
         return NextResponse.json(profile)
