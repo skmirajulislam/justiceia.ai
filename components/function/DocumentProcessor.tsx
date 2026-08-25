@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle, Download, Trash2, FileEdit, Brain, Languages, Edit3, Save, X } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, CheckCircle, Download, Trash2, FileEdit, Brain, Languages, Edit3, Save, X, Volume2, VolumeX, Play, Pause, Square, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -82,6 +82,29 @@ const DocumentProcessor = () => {
     const generatedSectionRef = useRef<HTMLDivElement>(null);
     const translatedSectionRef = useRef<HTMLDivElement>(null);
 
+    // Document Speech Reader State
+    const [readerState, setReaderState] = useState<{
+        docId: string | null;
+        isPlaying: boolean;
+        isPaused: boolean;
+        currentLineIndex: number;
+        totalLines: number;
+        lines: string[];
+        language: string;
+        rate: number;
+    }>({
+        docId: null,
+        isPlaying: false,
+        isPaused: false,
+        currentLineIndex: 0,
+        totalLines: 0,
+        lines: [],
+        language: 'english',
+        rate: 0.95,
+    });
+
+    const readerStateRef = useRef(readerState);
+    readerStateRef.current = readerState;
 
     // Legal document types
     const documentTypes = [
@@ -109,6 +132,177 @@ const DocumentProcessor = () => {
         { value: 'french', label: 'French' },
         { value: 'german', label: 'German' }
     ];
+
+    // Language speech synthesis BCP-47 tag mapping
+    const languageSpeechMap: Record<string, string> = {
+        english: 'en-IN',
+        bengali: 'bn-IN',
+        hindi: 'hi-IN',
+        telugu: 'te-IN',
+        tamil: 'ta-IN',
+        spanish: 'es-ES',
+        chinese: 'zh-CN',
+        french: 'fr-FR',
+        german: 'de-DE'
+    };
+
+    // Clean spoken lines for audio narration
+    const extractSpokenLines = (rawText: string): string[] => {
+        return rawText
+            .split('\n')
+            .map(l => l.replace(/^[#*\->•\s]+/, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim())
+            .filter(l => l.length > 0 && !/^(\*{3,}|-{3,}|_{3,})$/.test(l));
+    };
+
+    const speakCurrentLine = (lineIdx: number, lines: string[], lang: string, rate: number, docId: string) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+            toast({
+                title: "Speech Not Supported",
+                description: "Your browser does not support speech synthesis audio playback.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (lineIdx >= lines.length) {
+            window.speechSynthesis.cancel();
+            setReaderState(prev => ({
+                ...prev,
+                isPlaying: false,
+                isPaused: false,
+                currentLineIndex: 0
+            }));
+            toast({
+                title: "Document Reading Complete",
+                description: `Finished reading the document in ${languages.find(l => l.value === lang)?.label || lang}.`,
+            });
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+
+        const lineText = lines[lineIdx];
+        const utterance = new SpeechSynthesisUtterance(lineText);
+        const langCode = languageSpeechMap[lang.toLowerCase()] || 'en-IN';
+        utterance.lang = langCode;
+        utterance.rate = rate;
+
+        // Search for best matching regional voice
+        const voices = window.speechSynthesis.getVoices();
+        const exactVoice = voices.find(v => v.lang.toLowerCase() === langCode.toLowerCase());
+        const langPrefix = langCode.split('-')[0].toLowerCase();
+        const fallbackVoice = voices.find(v => v.lang.toLowerCase().startsWith(langPrefix));
+
+        if (exactVoice) {
+            utterance.voice = exactVoice;
+        } else if (fallbackVoice) {
+            utterance.voice = fallbackVoice;
+        }
+
+        utterance.onend = () => {
+            if (
+                readerStateRef.current.docId === docId &&
+                readerStateRef.current.isPlaying &&
+                !readerStateRef.current.isPaused
+            ) {
+                const nextIdx = lineIdx + 1;
+                setReaderState(prev => ({ ...prev, currentLineIndex: nextIdx }));
+                speakCurrentLine(nextIdx, lines, lang, rate, docId);
+            }
+        };
+
+        utterance.onerror = (e) => {
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                console.warn('Speech error:', e);
+            }
+        };
+
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const startReading = (docId: string, text: string, lang: string) => {
+        const lines = extractSpokenLines(text);
+        if (lines.length === 0) {
+            toast({
+                title: "No Content",
+                description: "No readable text found for audio playback.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        const currentRate = readerState.rate || 0.95;
+        setReaderState({
+            docId,
+            isPlaying: true,
+            isPaused: false,
+            currentLineIndex: 0,
+            totalLines: lines.length,
+            lines,
+            language: lang,
+            rate: currentRate
+        });
+
+        speakCurrentLine(0, lines, lang, currentRate, docId);
+    };
+
+    const pauseReading = () => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.pause();
+            setReaderState(prev => ({ ...prev, isPaused: true }));
+        }
+    };
+
+    const resumeReading = () => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            if (window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+                setReaderState(prev => ({ ...prev, isPaused: false }));
+            } else {
+                setReaderState(prev => ({ ...prev, isPaused: false }));
+                speakCurrentLine(
+                    readerState.currentLineIndex,
+                    readerState.lines,
+                    readerState.language,
+                    readerState.rate,
+                    readerState.docId || ''
+                );
+            }
+        }
+    };
+
+    const stopReading = () => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+        setReaderState(prev => ({
+            ...prev,
+            isPlaying: false,
+            isPaused: false,
+            docId: null,
+            currentLineIndex: 0
+        }));
+    };
+
+    const skipLine = (delta: number) => {
+        const nextIdx = Math.max(0, Math.min(readerState.lines.length - 1, readerState.currentLineIndex + delta));
+        setReaderState(prev => ({ ...prev, currentLineIndex: nextIdx, isPaused: false }));
+        speakCurrentLine(
+            nextIdx,
+            readerState.lines,
+            readerState.language,
+            readerState.rate,
+            readerState.docId || ''
+        );
+    };
+
+    useEffect(() => {
+        return () => {
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -575,29 +769,169 @@ const DocumentProcessor = () => {
         });
     };
 
-    // Helper function to render formatted text
-    const renderFormattedText = (text: string) => {
+    // Helper function to render formatted legal document markdown with high-fidelity legal styling and audio highlighting
+    const renderFormattedText = (text: string, docId?: string) => {
+        if (!text) return null;
+
         const lines = text.split('\n');
-        return lines.map((line, index) => {
-            // Handle bold text with **text** pattern
-            const parts = line.split(/(\*\*[^*]+\*\*)/g);
-            const formattedLine = parts.map((part, partIndex) => {
-                if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        const renderedElements: React.ReactNode[] = [];
+        let spokenLineCounter = 0;
+
+        // Helper to format inline bold, italics
+        const renderInlineStyles = (inlineText: string, keyPrefix: string) => {
+            const parts = inlineText.split(/(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
+            return parts.map((part, partIdx) => {
+                if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
                     return (
-                        <strong key={partIndex} className="font-bold text-slate-900">
+                        <strong key={`${keyPrefix}-b-${partIdx}`} className="font-bold text-slate-900 dark:text-white">
                             {part.slice(2, -2)}
                         </strong>
                     );
                 }
-                return <span key={partIndex}>{part}</span>;
+                if ((part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
+                    (part.startsWith('_') && part.endsWith('_') && part.length >= 2)) {
+                    return (
+                        <em key={`${keyPrefix}-i-${partIdx}`} className="italic text-slate-700 dark:text-slate-300">
+                            {part.slice(1, -1)}
+                        </em>
+                    );
+                }
+                return <span key={`${keyPrefix}-t-${partIdx}`}>{part}</span>;
             });
+        };
 
-            return (
-                <div key={index} className={line.trim() === '' ? 'mb-4' : 'mb-2'}>
-                    {formattedLine}
+        for (let i = 0; i < lines.length; i++) {
+            const rawLine = lines[i];
+            const trimmed = rawLine.trim();
+
+            if (!trimmed) {
+                renderedElements.push(<div key={`space-${i}`} className="h-2" />);
+                continue;
+            }
+
+            // Divider: ---, ***, ___
+            if (/^(\*{3,}|-{3,}|_{3,})$/.test(trimmed)) {
+                renderedElements.push(
+                    <hr key={`div-${i}`} className="my-4 border-slate-200 dark:border-slate-700" />
+                );
+                continue;
+            }
+
+            const isCurrentlyBeingRead =
+                readerState.docId === docId &&
+                readerState.isPlaying &&
+                readerState.currentLineIndex === spokenLineCounter;
+
+            const highlightClass = isCurrentlyBeingRead
+                ? "bg-sky-100/90 dark:bg-sky-950/80 border-l-4 border-sky-500 rounded-r-lg px-3 py-1.5 transition-all duration-300 ring-2 ring-sky-400/40 shadow-sm"
+                : "";
+
+            spokenLineCounter++;
+
+            // Heading 1: # Title
+            if (/^#\s+/.test(trimmed)) {
+                const heading = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '');
+                renderedElements.push(
+                    <div key={`h1-${i}`} className={highlightClass}>
+                        <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-slate-900 dark:text-white my-2 text-center sm:text-left border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2">
+                            {isCurrentlyBeingRead && <Volume2 className="w-4 h-4 text-sky-600 animate-pulse shrink-0" />}
+                            <span>{heading}</span>
+                        </h2>
+                    </div>
+                );
+                continue;
+            }
+
+            // Heading 2: ## Section
+            if (/^##\s+/.test(trimmed)) {
+                const heading = trimmed.replace(/^##+\s*/, '').replace(/\*\*/g, '');
+                renderedElements.push(
+                    <div key={`h2-${i}`} className={highlightClass}>
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-3 mb-1.5 flex items-center gap-2">
+                            {isCurrentlyBeingRead && <Volume2 className="w-4 h-4 text-sky-600 animate-pulse shrink-0" />}
+                            <span>{heading}</span>
+                        </h3>
+                    </div>
+                );
+                continue;
+            }
+
+            // Heading 3: ### Sub-section
+            if (/^###+\s+/.test(trimmed)) {
+                const heading = trimmed.replace(/^###+\s*/, '').replace(/\*\*/g, '');
+                renderedElements.push(
+                    <div key={`h3-${i}`} className={highlightClass}>
+                        <h4 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mt-2 mb-1 flex items-center gap-2">
+                            {isCurrentlyBeingRead && <Volume2 className="w-4 h-4 text-sky-600 animate-pulse shrink-0" />}
+                            <span>{heading}</span>
+                        </h4>
+                    </div>
+                );
+                continue;
+            }
+
+            // Disclaimer / Notice block
+            if (/^(>|DISCLAIMER:|\*This legal document)/i.test(trimmed)) {
+                const cleanDisclaimer = trimmed.replace(/^>\s*/, '').replace(/\*\*/g, '');
+                renderedElements.push(
+                    <div key={`disc-${i}`} className={`p-3.5 my-3 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-lg text-xs sm:text-sm text-amber-900 dark:text-amber-200 ${highlightClass}`}>
+                        {isCurrentlyBeingRead && <Volume2 className="w-4 h-4 text-amber-600 animate-pulse inline mr-1.5" />}
+                        {renderInlineStyles(cleanDisclaimer, `disc-${i}`)}
+                    </div>
+                );
+                continue;
+            }
+
+            // Numbered / Clause list (e.g. 1. Item, (a) Item)
+            const numMatch = trimmed.match(/^(\d+\.|\([a-zA-Z0-9]+\))\s+(.*)/);
+            if (numMatch) {
+                renderedElements.push(
+                    <div key={`num-${i}`} className={`flex items-start gap-2.5 my-1.5 pl-2 ${highlightClass}`}>
+                        {isCurrentlyBeingRead ? (
+                            <Volume2 className="w-4 h-4 text-sky-600 animate-pulse shrink-0 mt-0.5" />
+                        ) : (
+                            <span className="font-bold text-sky-600 dark:text-sky-400 font-mono text-sm shrink-0">
+                                {numMatch[1]}
+                            </span>
+                        )}
+                        <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed flex-1">
+                            {renderInlineStyles(numMatch[2], `num-body-${i}`)}
+                        </div>
+                    </div>
+                );
+                continue;
+            }
+
+            // Bullet list item
+            const bulletMatch = trimmed.match(/^([*\-•])\s+(.*)/);
+            if (bulletMatch && !trimmed.startsWith('***')) {
+                renderedElements.push(
+                    <div key={`bullet-${i}`} className={`flex items-start gap-2.5 my-1.5 pl-3 ${highlightClass}`}>
+                        {isCurrentlyBeingRead ? (
+                            <Volume2 className="w-4 h-4 text-sky-600 animate-pulse shrink-0 mt-0.5" />
+                        ) : (
+                            <span className="text-sky-500 shrink-0 font-bold text-sm">•</span>
+                        )}
+                        <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed flex-1">
+                            {renderInlineStyles(bulletMatch[2], `bullet-body-${i}`)}
+                        </div>
+                    </div>
+                );
+                continue;
+            }
+
+            // Standard Paragraph / Clause line
+            renderedElements.push(
+                <div key={`p-${i}`} className={highlightClass}>
+                    <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed my-1 flex items-start gap-2">
+                        {isCurrentlyBeingRead && <Volume2 className="w-3.5 h-3.5 text-sky-600 animate-pulse shrink-0 mt-1" />}
+                        <span>{renderInlineStyles(trimmed, `p-${i}`)}</span>
+                    </p>
                 </div>
             );
-        });
+        }
+
+        return <div className="space-y-1 font-sans">{renderedElements}</div>;
     };
 
     if (loading) {
@@ -976,6 +1310,33 @@ const DocumentProcessor = () => {
                                                                 </Button>
                                                             )}
                                                             <Button
+                                                                variant={readerState.docId === doc.id && readerState.isPlaying ? "default" : "outline"}
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    if (readerState.docId === doc.id && readerState.isPlaying) {
+                                                                        stopReading();
+                                                                    } else {
+                                                                        startReading(doc.id, doc.content, 'english');
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1.5 text-xs font-semibold ${
+                                                                    readerState.docId === doc.id && readerState.isPlaying
+                                                                        ? 'bg-sky-600 text-white'
+                                                                        : 'text-sky-600 dark:text-sky-400 border-sky-300 dark:border-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950'
+                                                                }`}
+                                                                title="Listen to line-by-line narration"
+                                                            >
+                                                                {readerState.docId === doc.id && readerState.isPlaying ? (
+                                                                    <>
+                                                                        <VolumeX className="w-3.5 h-3.5" /> Stop Reader
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Volume2 className="w-3.5 h-3.5" /> Document Reader
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                            <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => downloadAsPDF(doc.content, doc.title, 'generated')}
@@ -1002,17 +1363,88 @@ const DocumentProcessor = () => {
                                                         <h4 className="font-semibold text-slate-900">Generated Document</h4>
                                                     </div>
 
+                                                    {/* Document Reader Control Bar */}
+                                                    {readerState.docId === doc.id && readerState.isPlaying && (
+                                                        <div className="mb-4 p-3.5 bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-emerald-500/10 border border-sky-300 dark:border-sky-800 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-md animate-pulse">
+                                                                    <Volume2 className="w-4 h-4" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                                        <span>AI Legal Document Reader</span>
+                                                                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                                                    </p>
+                                                                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                                                                        Narrating line {readerState.currentLineIndex + 1} of {readerState.totalLines}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center space-x-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => skipLine(-1)}
+                                                                    disabled={readerState.currentLineIndex === 0}
+                                                                    className="h-8 px-2 text-xs"
+                                                                    title="Previous Line"
+                                                                >
+                                                                    <SkipBack className="w-3.5 h-3.5" />
+                                                                </Button>
+
+                                                                {readerState.isPaused ? (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={resumeReading}
+                                                                        className="h-8 px-3 bg-sky-600 hover:bg-sky-700 text-white text-xs flex items-center gap-1"
+                                                                    >
+                                                                        <Play className="w-3.5 h-3.5" /> Resume
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={pauseReading}
+                                                                        className="h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs flex items-center gap-1"
+                                                                    >
+                                                                        <Pause className="w-3.5 h-3.5" /> Pause
+                                                                    </Button>
+                                                                )}
+
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => skipLine(1)}
+                                                                    disabled={readerState.currentLineIndex >= readerState.totalLines - 1}
+                                                                    className="h-8 px-2 text-xs"
+                                                                    title="Next Line"
+                                                                >
+                                                                    <SkipForward className="w-3.5 h-3.5" />
+                                                                </Button>
+
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={stopReading}
+                                                                    className="h-8 px-2.5 text-xs flex items-center gap-1"
+                                                                >
+                                                                    <Square className="w-3 h-3 fill-current" /> Stop
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {doc.isEditing ? (
                                                         <Textarea
                                                             value={doc.editedContent || doc.content}
                                                             onChange={(e) => updateDocContent(doc.id, e.target.value)}
-                                                            className="min-h-96 font-mono text-sm"
+                                                            className="min-h-96 font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
                                                             placeholder="Edit your document content here..."
                                                         />
                                                     ) : (
-                                                        <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
-                                                            <div className="text-sm text-slate-700">
-                                                                {renderFormattedText(doc.content)}
+                                                        <div className="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-5 max-h-[32rem] overflow-y-auto shadow-inner">
+                                                            <div className="text-sm">
+                                                                {renderFormattedText(doc.content, doc.id)}
                                                             </div>
                                                         </div>
                                                     )}
@@ -1126,13 +1558,42 @@ const DocumentProcessor = () => {
                                                         {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
                                                     </Badge>
                                                     {doc.status === 'completed' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated')}
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                        </Button>
+                                                        <>
+                                                            <Button
+                                                                variant={readerState.docId === doc.id && readerState.isPlaying ? "default" : "outline"}
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    if (readerState.docId === doc.id && readerState.isPlaying) {
+                                                                        stopReading();
+                                                                    } else {
+                                                                        startReading(doc.id, doc.translatedContent, doc.targetLanguage);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1.5 text-xs font-semibold ${
+                                                                    readerState.docId === doc.id && readerState.isPlaying
+                                                                        ? 'bg-sky-600 text-white'
+                                                                        : 'text-sky-600 dark:text-sky-400 border-sky-300 dark:border-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950'
+                                                                }`}
+                                                                title="Listen to line-by-line explanation in translated language"
+                                                            >
+                                                                {readerState.docId === doc.id && readerState.isPlaying ? (
+                                                                    <>
+                                                                        <VolumeX className="w-3.5 h-3.5" /> Stop Reader
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Volume2 className="w-3.5 h-3.5" /> Document Reader ({languages.find(l => l.value === doc.targetLanguage)?.label || 'Local Language'})
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated')}
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
                                                     )}
                                                     <Button
                                                         variant="ghost"
@@ -1148,10 +1609,86 @@ const DocumentProcessor = () => {
                                             {/* Translated Content */}
                                             {doc.status === 'completed' && doc.translatedContent && (
                                                 <div className="mt-6 pt-6 border-t border-slate-200">
-                                                    <h4 className="font-semibold text-slate-900 mb-4">Translated Document</h4>
-                                                    <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
-                                                        <div className="text-sm text-slate-700">
-                                                            {renderFormattedText(doc.translatedContent)}
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h4 className="font-semibold text-slate-900 dark:text-white">
+                                                            Translated Document ({languages.find(l => l.value === doc.targetLanguage)?.label || 'Local Language'})
+                                                        </h4>
+                                                    </div>
+
+                                                    {/* Document Reader Control Bar */}
+                                                    {readerState.docId === doc.id && readerState.isPlaying && (
+                                                        <div className="mb-4 p-3.5 bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-emerald-500/10 border border-sky-300 dark:border-sky-800 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-md animate-pulse">
+                                                                    <Volume2 className="w-4 h-4" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                                        <span>AI Legal Document Reader ({languages.find(l => l.value === doc.targetLanguage)?.label || 'Translated'})</span>
+                                                                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                                                    </p>
+                                                                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                                                                        Narrating line {readerState.currentLineIndex + 1} of {readerState.totalLines}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center space-x-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => skipLine(-1)}
+                                                                    disabled={readerState.currentLineIndex === 0}
+                                                                    className="h-8 px-2 text-xs"
+                                                                    title="Previous Line"
+                                                                >
+                                                                    <SkipBack className="w-3.5 h-3.5" />
+                                                                </Button>
+
+                                                                {readerState.isPaused ? (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={resumeReading}
+                                                                        className="h-8 px-3 bg-sky-600 hover:bg-sky-700 text-white text-xs flex items-center gap-1"
+                                                                    >
+                                                                        <Play className="w-3.5 h-3.5" /> Resume
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={pauseReading}
+                                                                        className="h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs flex items-center gap-1"
+                                                                    >
+                                                                        <Pause className="w-3.5 h-3.5" /> Pause
+                                                                    </Button>
+                                                                )}
+
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => skipLine(1)}
+                                                                    disabled={readerState.currentLineIndex >= readerState.totalLines - 1}
+                                                                    className="h-8 px-2 text-xs"
+                                                                    title="Next Line"
+                                                                >
+                                                                    <SkipForward className="w-3.5 h-3.5" />
+                                                                </Button>
+
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={stopReading}
+                                                                    className="h-8 px-2.5 text-xs flex items-center gap-1"
+                                                                >
+                                                                    <Square className="w-3 h-3 fill-current" /> Stop
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-5 max-h-[32rem] overflow-y-auto shadow-inner">
+                                                        <div className="text-sm">
+                                                            {renderFormattedText(doc.translatedContent, doc.id)}
                                                         </div>
                                                     </div>
                                                 </div>
