@@ -106,14 +106,57 @@ const LegalLibrary = () => {
         setViewingDoc(doc);
     };
 
-    const handleDownloadDocument = (pdfUrl: string, title: string) => {
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = `${title}.pdf`;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleDownloadDocument = async (pdfUrl: string, title: string) => {
+        try {
+            toast({
+                title: "Starting Download",
+                description: `Downloading ${title}...`,
+            });
+
+            const downloadEndpoint = `/api/documents/download-file?url=${encodeURIComponent(pdfUrl)}&filename=${encodeURIComponent(title)}`;
+            const response = await fetch(downloadEndpoint);
+            
+            if (!response.ok) {
+                // Direct fetch fallback if proxy has issues
+                const directRes = await fetch(pdfUrl);
+                if (!directRes.ok) throw new Error('Download failed');
+                const blob = await directRes.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const sanitizedTitle = (title || 'document').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `${sanitizedTitle}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            } else {
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const sanitizedTitle = (title || 'document').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `${sanitizedTitle}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            }
+
+            toast({
+                title: "Download Complete",
+                description: `${title}.pdf saved successfully.`,
+            });
+        } catch (error) {
+            console.error('Download error:', error);
+            // Final fallback: use iframe/download anchor
+            const link = document.createElement('a');
+            link.href = `/api/documents/download-file?url=${encodeURIComponent(pdfUrl)}&filename=${encodeURIComponent(title)}`;
+            link.download = `${title}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     };
 
     const getAuthorInitials = (name: string) => {
