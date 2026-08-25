@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 import { UserRole } from '@/app/generated/prisma'
+import { deleteUploadThingFiles } from '@/lib/uploadthingServer'
 
 async function getAuthUserId(): Promise<string | null> {
     try {
@@ -123,14 +124,15 @@ export async function PUT(
         }
 
         // Handle role change only if valid enum
+        let targetRole = existingProfile.role;
         if (data.role) {
-            const roleStr = String(data.role).toUpperCase()
+            const roleStr = String(data.role).toUpperCase();
             if (Object.values(UserRole).includes(roleStr as UserRole)) {
-                // If role changed from/to professional, handle advocate profile
-                const isExistingProf = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(existingProfile.role)
-                const isNewProf = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(roleStr)
+                targetRole = roleStr as UserRole;
+                const isExistingProf = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(existingProfile.role);
+                const isNewProf = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(roleStr);
 
-                updateData.role = roleStr as UserRole
+                updateData.role = targetRole;
 
                 if (isNewProf && !isExistingProf) {
                     await prisma.advocateProfile.upsert({
@@ -146,8 +148,32 @@ export async function PUT(
                             is_verified: false,
                             is_available: true
                         }
-                    })
+                    });
                 }
+            }
+        }
+
+        // Whenever an advocate/professional updates their profile, reset their VKYC
+        // and delete old VKYC images from UploadThing and DB so they must re-verify
+        const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(targetRole);
+
+        if (isProfessional) {
+            updateData.vkyc_completed = false;
+            updateData.vkyc_completed_at = null;
+
+            // Fetch and delete all old VKYC documents from UploadThing
+            const oldVkycDocs = await prisma.vkycDocument.findMany({
+                where: { user_id: id }
+            });
+
+            if (oldVkycDocs.length > 0) {
+                const oldUrls = oldVkycDocs.map(doc => doc.document_url);
+                await deleteUploadThingFiles(oldUrls);
+
+                // Delete records from database
+                await prisma.vkycDocument.deleteMany({
+                    where: { user_id: id }
+                });
             }
         }
 
@@ -170,13 +196,16 @@ export async function PUT(
                 updated_at: true,
                 advocateProfile: true
             }
-        })
+        });
 
         return NextResponse.json({
             success: true,
             profile: updatedProfile,
-            message: 'Profile updated successfully'
-        })
+            requires_vkyc: isProfessional,
+            message: isProfessional
+                ? 'Profile updated. Security Policy: You must complete Video KYC verification before accessing legal features.'
+                : 'Profile updated successfully'
+        });
     } catch (error) {
         console.error('Profile update error:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

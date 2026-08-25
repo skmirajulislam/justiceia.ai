@@ -1,75 +1,53 @@
-"use client"
-import { useEffect, useState } from 'react';
+'use client';
+
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requireVKYC?: boolean;
+    children: React.ReactNode;
+    requireVKYC?: boolean;
 }
 
 const ProtectedRoute = ({ children, requireVKYC = false }: ProtectedRouteProps) => {
-  const [isChecking, setIsChecking] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
-  const { session, loading } = useAuth();
-  const router = useRouter();
+    const { session, loading } = useAuth();
+    const router = useRouter();
 
-  useEffect(() => {
-    const checkAccess = async () => {
-      // Wait for auth to finish loading
-      if (loading) return;
+    useEffect(() => {
+        if (loading) return;
 
-      // If no session, middleware should handle redirect
-      if (!session) {
-        setIsChecking(false);
-        return;
-      }
-
-      // If VKYC is required, check completion
-      if (requireVKYC) {
-        try {
-          const response = await fetch(`/api/profile/${session.user.id}`);
-          if (response.ok) {
-            const profile = await response.json();
-            if (!profile?.vkyc_completed) {
-              router.push('/vkyc');
-              return;
-            }
-          }
-        } catch (error) {
-          console.error('VKYC check error:', error);
-          return;
+        if (!session) {
+            router.replace('/auth');
+            return;
         }
-      }
 
-      // All checks passed
-      setHasAccess(true);
-      setIsChecking(false);
-    };
+        // Only enforce VKYC for advocates/professionals
+        if (requireVKYC && session.user.isProfessional && !session.user.vkyc_completed) {
+            router.replace('/vkyc');
+        }
+    }, [session, loading, router, requireVKYC]);
 
-    checkAccess();
-  }, [session, loading, router, requireVKYC]);
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
-  // Show loading while checking
-  if (loading || isChecking) {
+    if (!session) {
+        return null;
+    }
+
+    if (requireVKYC && session.user.isProfessional && !session.user.vkyc_completed) {
+        return null;
+    }
+
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-sky-500"></div>
-      </div>
+        <div className="animate-in fade-in duration-200 w-full">
+            {children}
+        </div>
     );
-  }
-
-  // If no session, don't render (middleware will redirect)
-  if (!session) {
-    return null;
-  }
-
-  // If checking access, don't render yet
-  if (!hasAccess) {
-    return null;
-  }
-
-  return <>{children}</>;
 };
 
 export default ProtectedRoute;

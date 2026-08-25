@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 import { KycType } from '@/app/generated/prisma'
+import { deleteUploadThingFiles } from '@/lib/uploadthingServer'
 
 export async function POST(req: NextRequest) {
     try {
@@ -72,9 +73,25 @@ export async function POST(req: NextRequest) {
 
         // Save document records if provided
         if (documents && Array.isArray(documents) && documents.length > 0) {
+            const oldDocs = await prisma.vkycDocument.findMany({
+                where: { user_id: decoded.userId }
+            });
+
+            const newDocUrls = new Set(
+                documents.map((d: any) => d.url || d.document_url).filter(Boolean)
+            );
+
+            const urlsToDelete = oldDocs
+                .map(d => d.document_url)
+                .filter(url => !newDocUrls.has(url));
+
+            if (urlsToDelete.length > 0) {
+                await deleteUploadThingFiles(urlsToDelete);
+            }
+
             await prisma.vkycDocument.deleteMany({
                 where: { user_id: decoded.userId }
-            })
+            });
 
             await prisma.vkycDocument.createMany({
                 data: documents.map((doc: { type?: string; document_type?: string; url?: string; document_url?: string }) => ({
@@ -83,7 +100,7 @@ export async function POST(req: NextRequest) {
                     document_url: doc.url || doc.document_url || '',
                     kyc_type: finalKycType
                 }))
-            })
+            });
         }
 
         // Fetch updated profile without exposing password

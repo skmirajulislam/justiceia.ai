@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
             user: {
                 id: profile.id,
                 email: profile.email,
-                name: `${profile.first_name} ${profile.last_name}`.trim(),
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email?.split('@')[0] || 'User',
                 role: profile.role,
                 kyc_type: profile.kyc_type,
                 can_upload_reports: profile.can_upload_reports,

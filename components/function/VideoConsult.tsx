@@ -25,6 +25,9 @@ import RazorpayPaymentModal from '@/components/function/RazorpayPaymentModal';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useWebRTC, WebRTCProvider, VideoCallState, IncomingCall } from '@/components/webrtc/WebRTCProvider';
+import { WebRTCVideoCallModal } from '@/components/webrtc/WebRTCVideoCallModal';
+import { IncomingCallModal } from '@/components/webrtc/IncomingCallModal';
 
 // Advocate Profile Form Schema
 const advocateProfileSchema = z.object({
@@ -79,27 +82,7 @@ interface ChatMessage {
     isRead: boolean;
 }
 
-interface VideoCallState {
-    isInCall: boolean;
-    callId: string | null;
-    localStream: MediaStream | null;
-    remoteStream: MediaStream | null;
-    isMuted: boolean;
-    isVideoOff: boolean;
-    peerConnection: RTCPeerConnection | null;
-    callStatus: 'idle' | 'calling' | 'ringing' | 'ongoing' | 'ended';
-    callerInfo: {
-        id: string;
-        name: string;
-    } | null;
-}
 
-interface IncomingCall {
-    callId: string;
-    from: string;
-    fromName: string;
-    offer: RTCSessionDescriptionInit;
-}
 
 
 interface AdvocateProfile {
@@ -131,571 +114,36 @@ interface AdvocateProfile {
     image?: string;
 }
 
-// Context Types
-interface SocketContextType {
-    socket: Socket | null;
-    onlineUsers: Set<string>;
-}
+// Re-export WebRTC Provider & Hooks
+export const SocketProvider = WebRTCProvider;
+export const VideoCallProvider = WebRTCProvider;
 
-interface VideoCallContextType {
-    videoCall: VideoCallState;
-    startCall: (participantId: string, participantName: string) => void;
-    endCall: () => void;
-    toggleMute: () => void;
-    toggleVideo: () => void;
-    incomingCall: IncomingCall | null;
-    acceptCall: () => void;
-    rejectCall: () => void;
-}
-
-// Create Contexts
-const SocketContext = createContext<SocketContextType>({
-    socket: null,
-    onlineUsers: new Set()
-});
-
-const VideoCallContext = createContext<VideoCallContextType>({
-    videoCall: {
-        isInCall: false,
-        callId: null,
-        localStream: null,
-        remoteStream: null,
-        isMuted: false,
-        isVideoOff: false,
-        peerConnection: null,
-        callStatus: 'idle',
-        callerInfo: null
-    },
-    startCall: () => { },
-    endCall: () => { },
-    toggleMute: () => { },
-    toggleVideo: () => { },
-    incomingCall: null,
-    acceptCall: () => { },
-    rejectCall: () => { }
-});
-
-// Context Providers
-export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-    const { session } = useAuth();
-
-    useEffect(() => {
-        if (!session?.user?.id) return;
-
-        const newSocket = io('/', {
-            path: '/pages/api/socket',
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-        });
-
-        // Register user
-        newSocket.emit('register-user', session.user.id);
-
-        // Handle online users
-        newSocket.on('online-users', (onlineUserIds: string[]) => {
-            setOnlineUsers(new Set(onlineUserIds));
-        });
-
-        // Handle individual status changes
-        newSocket.on('user-status-changed', (data: { userId: string, isOnline: boolean }) => {
-            setOnlineUsers(prev => {
-                const newSet = new Set(prev);
-                if (data.isOnline) {
-                    newSet.add(data.userId);
-                } else {
-                    newSet.delete(data.userId);
-                }
-                return newSet;
-            });
-        });
-
-        setSocket(newSocket);
-
-        return () => {
-            newSocket.disconnect();
-        };
-    }, [session?.user?.id]);
-
-    return (
-        <SocketContext.Provider value={{ socket, onlineUsers }}>
-            {children}
-        </SocketContext.Provider>
-    );
+export const useSocket = () => {
+    const { socket, onlineUsers } = useWebRTC();
+    return { socket, onlineUsers };
 };
 
-export const VideoCallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { socket } = useSocket();
-    const { toast } = useToast();
-
-    const [videoCall, setVideoCall] = useState<VideoCallState>({
-        isInCall: false,
-        callId: null,
-        localStream: null,
-        remoteStream: null,
-        isMuted: false,
-        isVideoOff: false,
-        peerConnection: null,
-        callStatus: 'idle',
-        callerInfo: null
-    });
-
-    const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
-
-    const initializePeerConnection = () => {
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-            ]
-        };
-
-        const pc = new RTCPeerConnection(configuration);
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate && socket && videoCall.callerInfo) {
-                socket.emit('ice-candidate', {
-                    candidate: event.candidate,
-                    targetId: videoCall.callerInfo.id,
-                    callId: videoCall.callId
-                });
-            }
-        };
-
-        pc.ontrack = (event) => {
-            setVideoCall(prev => ({
-                ...prev,
-                remoteStream: event.streams[0],
-                callStatus: 'ongoing'
-            }));
-        };
-
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === 'disconnected' ||
-                pc.connectionState === 'failed') {
-                endCall();
-            }
-        };
-
-        return pc;
+export const useVideoCall = () => {
+    const {
+        videoCall,
+        startCall,
+        endCall,
+        toggleMute,
+        toggleVideo,
+        incomingCall,
+        acceptCall,
+        rejectCall,
+    } = useWebRTC();
+    return {
+        videoCall,
+        startCall,
+        endCall,
+        toggleMute,
+        toggleVideo,
+        incomingCall,
+        acceptCall,
+        rejectCall,
     };
-
-    const startCall = async (participantId: string, participantName: string) => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-
-            const callId = `call_${Date.now()}`;
-            const peerConnection = initializePeerConnection();
-
-            stream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, stream);
-            });
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            setVideoCall({
-                isInCall: true,
-                callId,
-                localStream: stream,
-                remoteStream: null,
-                isMuted: false,
-                isVideoOff: false,
-                peerConnection,
-                callStatus: 'calling',
-                callerInfo: {
-                    id: participantId,
-                    name: participantName
-                }
-            });
-
-            if (socket) {
-                socket.emit('start-video-call', {
-                    callId,
-                    participantId,
-                    participantName,
-                    offer,
-                    callerId: socket.id,
-                    callerName: 'User'
-                });
-            }
-
-        } catch (error) {
-            console.error('Error starting call:', error);
-            toast({
-                title: "Error",
-                description: "Failed to start call. Please check permissions.",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const endCall = () => {
-        if (videoCall.localStream) {
-            videoCall.localStream.getTracks().forEach(track => track.stop());
-        }
-        if (videoCall.peerConnection) {
-            videoCall.peerConnection.close();
-        }
-
-        if (socket && videoCall.callId && videoCall.callerInfo) {
-            socket.emit('end-call', {
-                callId: videoCall.callId,
-                targetId: videoCall.callerInfo.id
-            });
-        }
-
-        setVideoCall({
-            isInCall: false,
-            callId: null,
-            localStream: null,
-            remoteStream: null,
-            isMuted: false,
-            isVideoOff: false,
-            peerConnection: null,
-            callStatus: 'idle',
-            callerInfo: null
-        });
-    };
-
-    const toggleMute = () => {
-        if (videoCall.localStream) {
-            const audioTrack = videoCall.localStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setVideoCall(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
-            }
-        }
-    };
-
-    const toggleVideo = () => {
-        if (videoCall.localStream) {
-            const videoTrack = videoCall.localStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setVideoCall(prev => ({ ...prev, isVideoOff: !videoTrack.enabled }));
-            }
-        }
-    };
-
-    const acceptCall = async () => {
-        if (!incomingCall) return;
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-
-            const peerConnection = initializePeerConnection();
-
-            stream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, stream);
-            });
-
-            await peerConnection.setRemoteDescription(
-                new RTCSessionDescription(incomingCall.offer)
-            );
-
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            setVideoCall({
-                isInCall: true,
-                callId: incomingCall.callId,
-                localStream: stream,
-                remoteStream: null,
-                isMuted: false,
-                isVideoOff: false,
-                peerConnection,
-                callStatus: 'ongoing',
-                callerInfo: {
-                    id: incomingCall.from,
-                    name: incomingCall.fromName
-                }
-            });
-
-            if (socket) {
-                socket.emit('call-accepted', {
-                    callId: incomingCall.callId,
-                    answer,
-                    targetId: incomingCall.from
-                });
-            }
-
-            setIncomingCall(null);
-        } catch (error) {
-            console.error('Error accepting call:', error);
-            toast({
-                title: "Error",
-                description: "Failed to accept call.",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const rejectCall = () => {
-        if (socket && incomingCall) {
-            socket.emit('call-rejected', {
-                callId: incomingCall.callId,
-                targetId: incomingCall.from
-            });
-        }
-        setIncomingCall(null);
-    };
-
-    useEffect(() => {
-        if (!socket) return;
-
-        const handleIncomingCall = (data: {
-            callId: string;
-            from: string;
-            fromName: string;
-            offer: RTCSessionDescriptionInit;
-        }) => {
-            setIncomingCall({
-                callId: data.callId,
-                from: data.from,
-                fromName: data.fromName,
-                offer: data.offer
-            });
-        };
-
-        const handleIceCandidate = (data: {
-            candidate: RTCIceCandidate;
-            callId: string;
-        }) => {
-            if (videoCall.callId === data.callId && videoCall.peerConnection) {
-                videoCall.peerConnection.addIceCandidate(
-                    new RTCIceCandidate(data.candidate)
-                ).catch(console.error);
-            }
-        };
-
-        const handleCallAnswer = (data: {
-            answer: RTCSessionDescriptionInit;
-            callId: string;
-        }) => {
-            if (videoCall.callId === data.callId && videoCall.peerConnection) {
-                videoCall.peerConnection.setRemoteDescription(
-                    new RTCSessionDescription(data.answer)
-                ).catch(console.error);
-            }
-        };
-
-        const handleCallEnded = () => {
-            endCall();
-            toast({
-                title: "Call Ended",
-                description: "The other participant has ended the call.",
-            });
-        };
-
-        socket.on('video-call-incoming', handleIncomingCall);
-        socket.on('ice-candidate', handleIceCandidate);
-        socket.on('call-answer', handleCallAnswer);
-        socket.on('call-ended', handleCallEnded);
-
-        return () => {
-            socket.off('video-call-incoming', handleIncomingCall);
-            socket.off('ice-candidate', handleIceCandidate);
-            socket.off('call-answer', handleCallAnswer);
-            socket.off('call-ended', handleCallEnded);
-        };
-    }, [socket, videoCall.callId, videoCall.peerConnection]);
-
-    return (
-        <VideoCallContext.Provider value={{
-            videoCall,
-            startCall,
-            endCall,
-            toggleMute,
-            toggleVideo,
-            incomingCall,
-            acceptCall,
-            rejectCall
-        }}>
-            {children}
-        </VideoCallContext.Provider>
-    );
-};
-
-// Custom Hooks
-export const useSocket = () => useContext(SocketContext);
-export const useVideoCall = () => useContext(VideoCallContext);
-
-// Video Call Modal Component
-interface VideoCallModalProps {
-    videoCall: VideoCallState;
-    onEndCall: () => void;
-    onToggleMute: () => void;
-    onToggleVideo: () => void;
-}
-
-const VideoCallModal: React.FC<VideoCallModalProps> = ({
-    videoCall,
-    onEndCall,
-    onToggleMute,
-    onToggleVideo
-}) => {
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
-    useEffect(() => {
-        if (localVideoRef.current && videoCall.localStream) {
-            localVideoRef.current.srcObject = videoCall.localStream;
-        }
-        return () => {
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = null;
-            }
-        };
-    }, [videoCall.localStream]);
-
-    useEffect(() => {
-        if (remoteVideoRef.current && videoCall.remoteStream) {
-            remoteVideoRef.current.srcObject = videoCall.remoteStream;
-        }
-        return () => {
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = null;
-            }
-        };
-    }, [videoCall.remoteStream]);
-
-    if (!videoCall.isInCall) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold">
-                        {videoCall.callStatus === 'calling' ? 'Calling...' :
-                            videoCall.callStatus === 'ringing' ? 'Incoming Call' :
-                                `Video Call with ${videoCall.callerInfo?.name || 'Participant'}`}
-                    </h2>
-                    <Button variant="destructive" onClick={onEndCall}>
-                        End Call
-                    </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* Remote Video */}
-                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
-                        {videoCall.remoteStream ? (
-                            <video
-                                ref={remoteVideoRef}
-                                autoPlay
-                                playsInline
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center">
-                                    <User className="w-12 h-12 mx-auto text-slate-400" />
-                                    <p className="text-slate-500 mt-2">
-                                        {videoCall.callStatus === 'calling' ? 'Waiting for answer...' :
-                                            videoCall.callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                            {videoCall.callerInfo?.name || 'Participant'}
-                        </div>
-                    </div>
-
-                    {/* Local Video */}
-                    <div className="relative bg-slate-100 rounded-lg overflow-hidden aspect-video">
-                        {videoCall.localStream ? (
-                            <video
-                                ref={localVideoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <User className="w-12 h-12 text-slate-400" />
-                            </div>
-                        )}
-                        <div className="absolute bottom-2 left-2 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                            You
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-center space-x-4">
-                    <Button
-                        variant={videoCall.isMuted ? "destructive" : "secondary"}
-                        size="lg"
-                        onClick={onToggleMute}
-                    >
-                        {videoCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    </Button>
-                    <Button
-                        variant={videoCall.isVideoOff ? "destructive" : "secondary"}
-                        size="lg"
-                        onClick={onToggleVideo}
-                    >
-                        {videoCall.isVideoOff ? <CameraOff className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-                    </Button>
-                    <Button variant="destructive" size="lg" onClick={onEndCall}>
-                        <Phone className="w-5 h-5" />
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Incoming Call Dialog Component
-const IncomingCallDialog: React.FC<{
-    incomingCall: IncomingCall | null;
-    onAccept: () => void;
-    onReject: () => void;
-}> = ({ incomingCall, onAccept, onReject }) => {
-    if (!incomingCall) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="p-6 max-w-sm mx-4">
-                <CardHeader className="text-center">
-                    <CardTitle className="flex items-center justify-center space-x-2">
-                        <Phone className="w-6 h-6 text-green-500" />
-                        <span>Incoming Video Call</span>
-                    </CardTitle>
-                    <CardDescription>
-                        {incomingCall.fromName} is calling you
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex space-x-4">
-                    <Button
-                        onClick={onAccept}
-                        className="flex-1 bg-green-500 hover:bg-green-600"
-                    >
-                        <Phone className="w-4 h-4 mr-2" />
-                        Accept
-                    </Button>
-                    <Button
-                        onClick={onReject}
-                        variant="destructive"
-                        className="flex-1"
-                    >
-                        <X className="w-4 h-4 mr-2" />
-                        Reject
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    );
 };
 
 // Chat Modal Component
@@ -1404,15 +852,11 @@ const VideoConsult = () => {
                         </div>
                     )}
 
-                    {/* Video Call Modal */}
-                    {videoCall.isInCall && (
-                        <VideoCallModal
-                            videoCall={videoCall}
-                            onEndCall={endCall}
-                            onToggleMute={toggleMute}
-                            onToggleVideo={toggleVideo}
-                        />
-                    )}
+                    {/* Google Meet / WhatsApp Grade WebRTC Video Call Modal */}
+                    <WebRTCVideoCallModal />
+
+                    {/* Incoming Call Notification Modal */}
+                    <IncomingCallModal />
 
                     {/* Chat Modal */}
                     {isChatOpen && (
@@ -1443,15 +887,6 @@ const VideoConsult = () => {
                                 />
                             </DialogContent>
                         </Dialog>
-                    )}
-
-                    {/* Incoming Call Notification */}
-                    {incomingCall && (
-                        <IncomingCallDialog
-                            incomingCall={incomingCall}
-                            onAccept={acceptCall}
-                            onReject={rejectCall}
-                        />
                     )}
                 </div>
             </div>
