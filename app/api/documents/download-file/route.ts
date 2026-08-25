@@ -1,42 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Allowlist of trusted storage hostnames for SSRF protection
-const ALLOWED_HOSTNAMES = [
+// Strict allowlist of storage hostnames for SSRF remediation (CodeQL js/request-forgery)
+const EXACT_ALLOWED_HOSTS = new Set([
     'utfs.io',
     'uploadthing.com',
-];
+    'ufs.sh',
+]);
 
-// Patterns that match wildcard subdomains (e.g. *.ufs.sh)
-const ALLOWED_HOSTNAME_SUFFIXES = [
-    '.ufs.sh',
-];
-
-function isAllowedUrl(url: string): boolean {
-    let parsed: URL;
+function getValidatedSafeUrl(rawUrl: string): string | null {
     try {
-        parsed = new URL(url);
+        const parsed = new URL(rawUrl);
+
+        // 1. Enforce HTTPS only (no file://, http://, ftp://, etc.)
+        if (parsed.protocol !== 'https:') {
+            return null;
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+
+        // 2. Validate hostname against strict trusted domains (UploadThing CDN)
+        let isHostTrusted = EXACT_ALLOWED_HOSTS.has(hostname);
+        if (!isHostTrusted && hostname.endsWith('.ufs.sh')) {
+            // Ensure subdomain is alphanumeric only (e.g. abc123xyz.ufs.sh)
+            const subdomain = hostname.slice(0, -7);
+            if (/^[a-z0-9-]+$/.test(subdomain)) {
+                isHostTrusted = true;
+            }
+        }
+
+        if (!isHostTrusted) {
+            return null;
+        }
+
+        // 3. Validate pathname characters (prevent path traversal / control characters)
+        const pathname = parsed.pathname;
+        if (!/^\/[a-zA-Z0-9_.\-\/]+$/.test(pathname) || pathname.includes('..')) {
+            return null;
+        }
+
+        // 4. Reconstruct sanitized target URL from trusted components
+        const safeTargetUrl = new URL(pathname, `https://${hostname}`);
+        if (parsed.search) {
+            // Only preserve safe query parameters if present
+            safeTargetUrl.search = parsed.search;
+        }
+
+        return safeTargetUrl.toString();
     } catch {
-        return false;
+        return null;
     }
-
-    // Only allow HTTPS
-    if (parsed.protocol !== 'https:') {
-        return false;
-    }
-
-    const hostname = parsed.hostname.toLowerCase();
-
-    // Check exact hostname match
-    if (ALLOWED_HOSTNAMES.includes(hostname)) {
-        return true;
-    }
-
-    // Check wildcard suffix match (e.g. *.ufs.sh)
-    if (ALLOWED_HOSTNAME_SUFFIXES.some(suffix => hostname === suffix.slice(1) || hostname.endsWith(suffix))) {
-        return true;
-    }
-
-    return false;
 }
 
 export async function GET(request: NextRequest) {
@@ -49,13 +61,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'File URL is required' }, { status: 400 });
         }
 
-        // Validate URL against allowlist to prevent SSRF attacks
-        if (!isAllowedUrl(fileUrl)) {
-            return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
+        // Validate and sanitize URL against allowlist to resolve SSRF (CodeQL js/request-forgery)
+        const safeUrl = getValidatedSafeUrl(fileUrl);
+        if (!safeUrl) {
+            return NextResponse.json({ error: 'URL not allowed or invalid' }, { status: 403 });
         }
 
-        // Fetch remote file on server side
-        const res = await fetch(fileUrl);
+        // Fetch validated remote file on server side
+        const res = await fetch(safeUrl);
         if (!res.ok) {
             return NextResponse.json({ error: 'Failed to fetch document file' }, { status: res.status });
         }
