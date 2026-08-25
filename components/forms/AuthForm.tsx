@@ -145,10 +145,10 @@ const AuthForm = () => {
   // Show loading while checking authentication or redirecting
   if (loading || redirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-sky-500"></div>
-          <p className="text-slate-600">
+          <p className="text-slate-600 dark:text-slate-300">
             {loading ? "Loading..." : "Redirecting..."}
           </p>
         </div>
@@ -157,17 +157,17 @@ const AuthForm = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 px-4 py-8 transition-colors duration-200">
+      <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
+            <div className="bg-gradient-to-r from-sky-600 to-sky-700 p-2 rounded-lg shadow-md">
               <Scale className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">Justiceia.ai</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white">Justiceia.ai</span>
           </div>
-          <CardTitle>Welcome</CardTitle>
-          <CardDescription>Sign in to access legal services</CardDescription>
+          <CardTitle className="text-slate-900 dark:text-white">Welcome</CardTitle>
+          <CardDescription className="text-slate-600 dark:text-slate-400">Sign in to access legal services</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="space-y-4">

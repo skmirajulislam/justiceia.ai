@@ -39,18 +39,18 @@ const ServicesSection = () => {
   ];
 
   return (
-    <section className="py-12 bg-white">
+    <section className="py-16 bg-white dark:bg-slate-900 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center space-x-2 bg-sky-50 border border-sky-200 rounded-full px-4 py-2 text-sm text-sky-600 mb-8">
+          <div className="inline-flex items-center space-x-2 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 rounded-full px-4 py-2 text-sm text-sky-600 dark:text-sky-400 mb-6 shadow-sm">
             <Sparkles className="w-4 h-4" />
             <span>Comprehensive Legal Solutions</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
             Everything You Need for Legal Success
           </h2>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
             From AI-powered research to secure consultations, our platform provides all the tools
             you need to navigate India's legal landscape efficiently.
           </p>
@@ -61,51 +61,52 @@ const ServicesSection = () => {
           {services.map((service) => (
             <div
               key={service.title}
-              className="group relative bg-white border border-slate-200 rounded-2xl p-8 hover:border-sky-300 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+              className="group relative bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 hover:border-sky-400 dark:hover:border-sky-500 hover:shadow-xl dark:shadow-slate-950/50 transition-all duration-300 transform hover:-translate-y-1"
             >
               {/* Icon */}
-              <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${service.gradient} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+              <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${service.gradient} text-white mb-6 group-hover:scale-110 transition-transform duration-300 shadow-md`}>
                 {service.icon}
               </div>
 
               {/* Content */}
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">{service.title}</h3>
-              <p className="text-slate-600 mb-6 leading-relaxed">{service.description}</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{service.title}</h3>
+              <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">{service.description}</p>
 
               {/* Features */}
               <ul className="space-y-2 mb-8">
                 {service.features.map((feature) => (
-                  <li key={feature} className="flex items-center text-slate-600">
-                    <div className="w-2 h-2 bg-sky-400 rounded-full mr-3"></div>
+                  <li key={feature} className="flex items-center text-slate-600 dark:text-slate-400 text-sm">
+                    <div className="w-2 h-2 bg-sky-500 rounded-full mr-3 shrink-0"></div>
                     {feature}
                   </li>
                 ))}
               </ul>
 
               {/* CTA */}
-              <a
+              <Link
                 href={service.href}
-                className="inline-flex items-center space-x-2 text-sky-600 font-semibold hover:text-sky-700 group-hover:translate-x-1 transition-all duration-200"
+                className="inline-flex items-center space-x-2 text-sky-600 dark:text-sky-400 font-semibold hover:text-sky-700 dark:hover:text-sky-300 group-hover:translate-x-1 transition-all duration-200"
               >
                 <span>Learn More</span>
                 <ArrowRight className="w-4 h-4" />
-              </a>
+              </Link>
 
               {/* Hover effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
             </div>
           ))}
         </div>
+
         {/* Bottom CTA */}
         <div className="text-center mt-16">
           <Link
-            href="/"
-            className="inline-block bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+            href="/auth"
+            className="inline-block bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             Start Your Legal Journey Today
           </Link>
         </div>
-        </div>
+      </div>
     </section>
   );
 };

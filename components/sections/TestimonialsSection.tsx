@@ -36,22 +36,22 @@ const TestimonialsSection = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-slate-50 to-sky-50">
+    <section className="py-20 bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Stats section */}
         <div className="text-center mb-20">
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
             Trusted by Legal Professionals Across India
           </h2>
-          <p className="text-xl text-slate-600 mb-12 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 mb-12 max-w-3xl mx-auto leading-relaxed">
             Our platform has helped thousands of lawyers and clients navigate the legal system more efficiently.
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
-                <div className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">{stat.value}</div>
-                <div className="text-slate-600">{stat.label}</div>
+                <div className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-1">{stat.value}</div>
+                <div className="text-slate-600 dark:text-slate-400 text-sm font-medium">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -59,7 +59,7 @@ const TestimonialsSection = () => {
 
         {/* Testimonials */}
         <div className="mb-12">
-          <h3 className="text-2xl font-bold text-slate-900 text-center mb-12">
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-12">
             What Our Users Say
           </h3>
 
@@ -67,13 +67,13 @@ const TestimonialsSection = () => {
             {testimonials.map((testimonial) => (
               <div
                 key={testimonial.name}
-                className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-slate-200"
+                className="bg-white dark:bg-slate-900/90 rounded-2xl p-8 shadow-lg hover:shadow-xl dark:shadow-slate-950/40 transition-shadow duration-300 border border-slate-200 dark:border-slate-800"
               >
                 {/* Quote icon */}
-                <Quote className="w-8 h-8 text-sky-400 mb-4" />
+                <Quote className="w-8 h-8 text-sky-500 mb-4" />
 
                 {/* Content */}
-                <p className="text-slate-600 mb-6 leading-relaxed">
+                <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
                   &quot;{testimonial.content}&quot;
                 </p>
 
@@ -91,11 +91,11 @@ const TestimonialsSection = () => {
                     height={48}
                     src={testimonial.image}
                     alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
+                    className="w-12 h-12 rounded-full object-cover mr-4 ring-2 ring-sky-500/20"
                   />
                   <div>
-                    <div className="font-semibold text-slate-900">{testimonial.name}</div>
-                    <div className="text-sm text-slate-600">{testimonial.role}</div>
+                    <div className="font-semibold text-slate-900 dark:text-white">{testimonial.name}</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">{testimonial.role}</div>
                   </div>
                 </div>
               </div>

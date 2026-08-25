@@ -363,15 +363,15 @@ const PublishReport = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
             <Navbar />
             <div className="mt-3 pt-24 px-4 py-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-slate-900">Publish Legal Report</h1>
-                        <p className="text-slate-600 mt-2">Share your legal expertise with the community</p>
-                        <div className="mt-4 p-4 bg-sky-50 rounded-lg">
-                            <p className="text-sm text-sky-700">
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Publish Legal Report</h1>
+                        <p className="text-slate-600 dark:text-slate-300 mt-2">Share your legal expertise with the community</p>
+                        <div className="mt-4 p-4 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 rounded-lg">
+                            <p className="text-sm text-sky-700 dark:text-sky-300">
                                 <strong>Total Published Reports:</strong> {reports.length}
                             </p>
                         </div>

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { ReactNode, useState } from "react";
 
 interface ClientProvidersProps {
@@ -22,12 +23,19 @@ export default function ClientProviders({ children }: ClientProvidersProps) {
     }));
 
     return (
-        <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                {children}
-            </TooltipProvider>
-        </QueryClientProvider>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            <QueryClientProvider client={queryClient}>
+                <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    {children}
+                </TooltipProvider>
+            </QueryClientProvider>
+        </ThemeProvider>
     );
 }

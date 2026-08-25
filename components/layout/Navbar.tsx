@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import ThemeToggle from '@/components/layout/ThemeToggle';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -107,8 +108,10 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Auth Section */}
-          <div className="hidden md:flex items-center space-x-4">
+          {/* Auth Section & Theme Toggle */}
+          <div className="hidden md:flex items-center space-x-3">
+            <ThemeToggle />
+
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -117,7 +120,7 @@ const Navbar = () => {
                     <span className="max-w-[180px] truncate">{getUserDisplayName()}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 shadow-lg border-slate-200">
+                <DropdownMenuContent align="end" className="w-56 shadow-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="flex items-center cursor-pointer">
                       <User className="w-4 h-4 mr-2" />
@@ -128,7 +131,7 @@ const Navbar = () => {
                   {isProfessional && (
                     <DropdownMenuItem asChild>
                       <Link href="/vkyc" className="flex items-center cursor-pointer">
-                        <ShieldCheck className="w-4 h-4 mr-2 text-sky-600" />
+                        <ShieldCheck className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
                         Video KYC Status
                       </Link>
                     </DropdownMenuItem>
@@ -136,12 +139,12 @@ const Navbar = () => {
 
                   <DropdownMenuItem asChild>
                     <Link href="/vkyc/verify" className="flex items-center cursor-pointer">
-                      <Search className="w-4 h-4 mr-2 text-emerald-600" />
+                      <Search className="w-4 h-4 mr-2 text-emerald-600 dark:text-emerald-400" />
                       Verify Certificate ID
                     </Link>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400 cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -151,7 +154,7 @@ const Navbar = () => {
               <>
                 <Link
                   href="/auth"
-                  className="flex items-center space-x-1 text-slate-600 hover:text-sky-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  className="flex items-center space-x-1 text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>Sign In</span>
@@ -166,11 +169,12 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* Mobile menu button & Theme toggle */}
+          <div className="md:hidden flex items-center space-x-2">
+            <ThemeToggle />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-sky-500 hover:bg-slate-100 transition-colors duration-200"
+              className="inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-sky-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors duration-200"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -180,13 +184,13 @@ const Navbar = () => {
 
       {/* Mobile Navigation */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-slate-200 shadow-xl animate-in slide-in-from-top-2 duration-150">
+        <div className="md:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-xl animate-in slide-in-from-top-2 duration-150">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {filteredNavItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="items-center space-x-2 text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                className="items-center space-x-2 text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                 onClick={(e) => {
                   handleNavClick(e, item.href);
                   setIsMenuOpen(false);
@@ -196,12 +200,12 @@ const Navbar = () => {
                 <span>{item.name}</span>
               </Link>
             ))}
-            <div className="pt-4 pb-2 border-t border-slate-200 mt-4">
+            <div className="pt-4 pb-2 border-t border-slate-200 dark:border-slate-800 mt-4">
               {session ? (
                 <>
                   <Link
                     href="/profile"
-                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <User className="w-4 h-4" />
@@ -209,18 +213,26 @@ const Navbar = () => {
                   </Link>
                   <Link
                     href="/vkyc"
-                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Settings className="w-4 h-4" />
-                    <span>Update KYC</span>
+                    <ShieldCheck className="w-4 h-4 text-sky-500" />
+                    <span>Video KYC Status</span>
+                  </Link>
+                  <Link
+                    href="/vkyc/verify"
+                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Search className="w-4 h-4 text-emerald-500" />
+                    <span>Verify Certificate</span>
                   </Link>
                   <button
                     onClick={() => {
                       handleLogout();
                       setIsMenuOpen(false);
                     }}
-                    className="items-center space-x-2 w-full text-left text-red-600 hover:text-red-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    className="items-center space-x-2 w-full text-left text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Logout</span>
@@ -230,7 +242,7 @@ const Navbar = () => {
                 <>
                   <Link
                     href="/auth"
-                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <LogIn className="w-4 h-4" />

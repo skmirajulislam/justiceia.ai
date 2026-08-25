@@ -132,7 +132,7 @@ const LegalLibrary = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
                 <Navbar />
                 <div className="container mx-auto px-4 pt-20 pb-8">
                     <div className="flex items-center justify-center py-20">
@@ -144,40 +144,40 @@ const LegalLibrary = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
             <Navbar />
             <div className="container mx-auto px-4 pt-20 pb-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-8">
                         <div className="flex items-center justify-center space-x-2 mb-4">
                             <BookOpen className="w-8 h-8 text-sky-500" />
-                            <h1 className="text-3xl font-bold text-slate-900">Legal Library</h1>
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Legal Library</h1>
                         </div>
-                        <p className="text-slate-600">Comprehensive collection of legal documents, case laws, and reports from verified professionals</p>
+                        <p className="text-slate-600 dark:text-slate-300">Comprehensive collection of legal documents, case laws, and reports from verified professionals</p>
                     </div>
 
                     {/* Search and Filter Section */}
-                    <Card className="mb-8">
+                    <Card className="mb-8 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                         <CardContent className="p-6">
                             <div className="flex flex-col md:flex-row gap-4">
                                 <div className="flex-1 relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
                                     <Input
                                         placeholder="Search legal documents, case laws, reports..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10"
+                                        className="pl-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <Filter className="w-4 h-4 text-slate-500" />
+                                    <Filter className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                                     <select
                                         value={selectedCategory}
                                         onChange={(e) => setSelectedCategory(e.target.value)}
-                                        className="px-3 py-2 border border-slate-200 rounded-md bg-white text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                                        className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-950 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
                                     >
                                         {categories.map(category => (
-                                            <option key={category} value={category} className="text-sm text-slate-700">
+                                            <option key={category} value={category} className="text-sm bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200">
                                                 {category === 'all' ? 'All Categories' : category}
                                             </option>
                                         ))}
@@ -191,35 +191,35 @@ const LegalLibrary = () => {
                     {documents.length > 0 ? (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {documents.map((doc) => (
-                                <Card key={doc.id} className="hover:shadow-lg transition-shadow">
+                                <Card key={doc.id} className="hover:shadow-lg dark:hover:shadow-slate-950/60 transition-shadow border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                                     <CardHeader>
                                         <div className="flex justify-between items-start mb-2">
-                                            <Badge variant="outline">{doc.category}</Badge>
-                                            <span className="text-sm text-slate-500">
+                                            <Badge variant="outline" className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{doc.category}</Badge>
+                                            <span className="text-sm text-slate-500 dark:text-slate-400">
                                                 {new Date(doc.created_at).getFullYear()}
                                             </span>
                                         </div>
-                                        <CardTitle className="text-lg line-clamp-2">{doc.title}</CardTitle>
+                                        <CardTitle className="text-lg line-clamp-2 text-slate-900 dark:text-white">{doc.title}</CardTitle>
                                         {doc.court && (
-                                            <CardDescription className="text-sm text-slate-600">
+                                            <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
                                                 {doc.court}
                                             </CardDescription>
                                         )}
                                     </CardHeader>
                                     <CardContent>
                                         {doc.description && (
-                                            <p className="text-sm text-slate-700 mb-4 line-clamp-3">{doc.description}</p>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-4 line-clamp-3">{doc.description}</p>
                                         )}
 
                                         {/* Author Information */}
-                                        <div className="flex items-center space-x-3 mb-4 p-3 bg-slate-50 rounded-lg">
+                                        <div className="flex items-center space-x-3 mb-4 p-3 bg-slate-50 dark:bg-slate-800/70 rounded-lg">
                                             <Avatar className="w-8 h-8">
-                                                <AvatarFallback className="text-xs">
+                                                <AvatarFallback className="text-xs bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
                                                     {getAuthorInitials(doc.author.name)}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-slate-900 truncate">
+                                                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                                                     {doc.author.name || 'Anonymous'}
                                                 </p>
                                                 <div className="flex items-center space-x-2">
@@ -237,12 +237,12 @@ const LegalLibrary = () => {
                                         {doc.tags && doc.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-1 mb-4">
                                                 {doc.tags.slice(0, 3).map((tag, index) => (
-                                                    <Badge key={index} variant="secondary" className="text-xs">
+                                                    <Badge key={index} variant="secondary" className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                                         {tag}
                                                     </Badge>
                                                 ))}
                                                 {doc.tags.length > 3 && (
-                                                    <Badge variant="secondary" className="text-xs">
+                                                    <Badge variant="secondary" className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                                         +{doc.tags.length - 3} more
                                                     </Badge>
                                                 )}
@@ -254,7 +254,7 @@ const LegalLibrary = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="flex-1"
+                                                className="flex-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
                                                 onClick={() => handleViewDocument(doc.pdf_url)}
                                             >
                                                 <Eye className="w-4 h-4 mr-2" />
@@ -263,7 +263,7 @@ const LegalLibrary = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="flex-1"
+                                                className="flex-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
                                                 onClick={() => handleDownloadDocument(doc.pdf_url, doc.title)}
                                             >
                                                 <Download className="w-4 h-4 mr-2" />
@@ -272,8 +272,8 @@ const LegalLibrary = () => {
                                         </div>
 
                                         {/* Date Information */}
-                                        <div className="mt-3 pt-3 border-t border-slate-200">
-                                            <div className="flex justify-between items-center text-xs text-slate-500">
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                            <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
                                                 <span>Published: {new Date(doc.created_at).toLocaleDateString()}</span>
                                                 {doc.date && (
                                                     <span>Case Date: {new Date(doc.date).toLocaleDateString()}</span>
@@ -286,9 +286,9 @@ const LegalLibrary = () => {
                         </div>
                     ) : (
                         <div className="text-center py-12">
-                            <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-slate-600 mb-2">No Documents Available</h3>
-                            <p className="text-slate-500 text-sm">
+                            <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-slate-600 dark:text-slate-300 mb-2">No Documents Available</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">
                                 {searchQuery || selectedCategory !== 'all'
                                     ? 'No documents found matching your search criteria. Try adjusting your search terms or category filter.'
                                     : 'No legal documents have been published yet. Check back later or be the first to contribute!'

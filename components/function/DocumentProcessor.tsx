@@ -602,7 +602,7 @@ const DocumentProcessor = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-sky-500"></div>
             </div>
         );
@@ -610,29 +610,30 @@ const DocumentProcessor = () => {
 
     if (showApiKeyInput) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
                 <Navbar />
                 <div className="pt-16 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-md mx-auto py-16">
-                        <Card>
+                        <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <CardHeader className="text-center">
-                                <CardTitle>AI Document Processor Setup</CardTitle>
-                                <CardDescription>
+                                <CardTitle className="text-slate-900 dark:text-white">AI Document Processor Setup</CardTitle>
+                                <CardDescription className="text-slate-600 dark:text-slate-400">
                                     Enter your Gemini API key to use AI-powered document processing
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="apiKey">Gemini API Key</Label>
+                                    <Label htmlFor="apiKey" className="text-slate-700 dark:text-slate-300">Gemini API Key</Label>
                                     <Input
                                         id="apiKey"
                                         type="password"
                                         placeholder="Enter your Gemini API key"
                                         value={apiKey}
                                         onChange={(e) => setApiKey(e.target.value)}
+                                        className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                                     />
                                 </div>
-                                <Button onClick={handleApiKeySubmit} className="w-full">
+                                <Button onClick={handleApiKeySubmit} className="w-full bg-sky-600 hover:bg-sky-700">
                                     Save API Key
                                 </Button>
                                 <p className="text-xs text-slate-500 text-center">
@@ -647,53 +648,53 @@ const DocumentProcessor = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
             <Navbar />
             <div className="pt-16 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto py-8">
                     <div className="mb-6 px-4 sm:px-6 md:px-0 text-center sm:text-left">
-                        <h1 className="text-2xl sm:text-2xl md:text-3xl font-bold text-slate-900 leading-snug">
+                        <h1 className="text-2xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white leading-snug">
                             AI Document Processor
                         </h1>
-                        <p className="text-xs sm:text-sm md:text-base text-slate-600 mt-2 leading-relaxed">
+                        <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
                             Analyze, generate, and translate legal documents with AI
                         </p>
                     </div>
 
                     {/* Section Tabs */}
                     <div className="mb-8 px-4 sm:px-0">
-                        <div className="flex flex-wrap sm:flex-nowrap gap-2 bg-slate-100 p-1 rounded-lg w-full sm:w-fit overflow-x-auto justify-center">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-full sm:w-fit overflow-x-auto justify-center border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => setActiveSection('analyze')}
                                 className={`flex items-center space-x-2 px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                                     activeSection === 'analyze'
-                                    ? 'bg-white text-slate-900 shadow'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                                 >
-                                <Brain className="w-4 h-4" />
+                                <Brain className="w-4 h-4 text-sky-500" />
                                 <span>Document Analysis</span>
                             </button>
                             <button
                                 onClick={() => setActiveSection('generate')}
                                 className={`flex items-center space-x-2 px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                                     activeSection === 'generate'
-                                    ? 'bg-white text-slate-900 shadow'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                                 >
-                                <FileEdit className="w-4 h-4" />
+                                <FileEdit className="w-4 h-4 text-emerald-500" />
                                 <span>Document Generation</span>
                             </button>
                             <button
                                 onClick={() => setActiveSection('translate')}
                                 className={`flex items-center space-x-2 px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                                     activeSection === 'translate'
-                                    ? 'bg-white text-slate-900 shadow'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                                 >
-                                <Languages className="w-4 h-4" />
+                                <Languages className="w-4 h-4 text-purple-500" />
                                 <span>Document Translation</span>
                             </button>
                         </div>

@@ -172,11 +172,11 @@ const ChatModal: React.FC<{
         if (!isOpen) return null;
 
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg w-full max-w-md mx-4 h-96 flex flex-col">
-                    <div className="flex items-center justify-between p-4 border-b">
-                        <h3 className="text-lg font-medium">Chat with {participantName}</h3>
-                        <Button variant="ghost" size="sm" onClick={onClose}>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-full max-w-md mx-4 h-96 flex flex-col text-slate-900 dark:text-slate-100 shadow-2xl">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+                        <h3 className="text-lg font-semibold">Chat with {participantName}</h3>
+                        <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800">
                             <X className="w-4 h-4" />
                         </Button>
                     </div>
@@ -773,7 +773,7 @@ const VideoConsult = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
             <Navbar />
             <div className="container mx-auto px-4 pt-20 pb-8">
                 <div className="max-w-7xl mx-auto">
@@ -781,9 +781,9 @@ const VideoConsult = () => {
                     <div className="text-center mb-8">
                         <div className="flex items-center justify-center space-x-2 mb-4">
                             <Video className="w-8 h-8 text-sky-500" />
-                            <h1 className="text-3xl font-bold text-slate-900">Video Consultation</h1>
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Video Consultation</h1>
                         </div>
-                        <p className="text-slate-600">Connect with expert lawyers for personalized legal advice</p>
+                        <p className="text-slate-600 dark:text-slate-300">Connect with expert lawyers for personalized legal advice</p>
 
                         {/* Role indicator */}
                         {isAdvocate && (
@@ -930,14 +930,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-slate-700">Filter by specialization:</span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Filter by specialization:</span>
                             <select
                                 value={selectedSpecialization}
                                 onChange={(e) => setSelectedSpecialization(e.target.value)}
-                                className="px-3 py-2 border border-slate-200 rounded-md bg-white"
+                                className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                             >
                                 {specializations.map(spec => (
-                                    <option key={spec} value={spec}>
+                                    <option key={spec} value={spec} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
                                         {spec === 'all' ? 'All Specializations' : spec}
                                     </option>
                                 ))}
@@ -1228,14 +1228,14 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
     return (
         <div className="space-y-6">
             {/* Dashboard Header */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Welcome,  {profile.profile ?
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome,  {profile.profile ?
                             `${profile.profile.first_name || ''} ${profile.profile.last_name || ''}`.trim() || 'Not specified' :
                             profile.name || 'Not specified'
                         }</h1>
-                        <p className="text-slate-600">{profile.specialization} • {profile.experience} years experience</p>
+                        <p className="text-slate-600 dark:text-slate-300">{profile.specialization} • {profile.experience} years experience</p>
                     </div>
                     <div className="flex items-center space-x-4">
                         <Badge variant="secondary">
@@ -1250,16 +1250,16 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
             </div>
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-sm">
-                <div className="border-b border-slate-200">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
+                <div className="border-b border-slate-200 dark:border-slate-800">
                     <div className="flex space-x-8 px-6">
                         {['dashboard', 'requests', 'profile'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`py-4 px-2 border-b-2 font-medium text-sm capitalize transition-colors ${activeTab === tab
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                                     }`}
                             >
                                 {tab}

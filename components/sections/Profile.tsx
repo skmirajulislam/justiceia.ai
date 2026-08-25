@@ -250,12 +250,12 @@ const Profile = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
                 <Navbar />
                 <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="animate-pulse space-y-4">
-                        <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-                        <div className="h-64 bg-slate-200 rounded"></div>
+                        <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
+                        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded"></div>
                     </div>
                 </div>
             </div>
@@ -265,7 +265,7 @@ const Profile = () => {
     const isProfessionalUser = profile?.role && ['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(profile.role);
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 transition-colors duration-200">
             <Navbar />
             <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
