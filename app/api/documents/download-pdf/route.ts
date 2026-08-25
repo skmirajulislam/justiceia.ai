@@ -85,11 +85,13 @@ export async function POST(request: NextRequest) {
 
         const fonts = getFontPaths(language || 'english');
 
-        // Create PDF document with PDFKit (proper Unicode support)
+        // Create PDF document with PDFKit, using our custom font as default
+        // to prevent PDFKit from trying to load built-in Helvetica.afm
         const doc = new PDFDocument({
             size: 'A4',
             margins: { top: 50, bottom: 50, left: 50, right: 50 },
             bufferPages: true,
+            font: fonts.regular, // Use custom font as default to avoid Helvetica.afm lookup
             info: {
                 Title: fileName,
                 Author: 'Justiceia.ai',
@@ -98,12 +100,11 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Register fonts
+        // Register named font aliases
         doc.registerFont('NotoRegular', fonts.regular);
         doc.registerFont('NotoBold', fonts.bold);
 
-        // For translated documents that use non-Latin scripts, we also need the Latin font
-        // for English words/headers that may appear in the document
+        // For translated documents that use non-Latin scripts, also register the Latin font
         const latinFonts = getFontPaths('english');
         if (fonts.regular !== latinFonts.regular) {
             doc.registerFont('LatinRegular', latinFonts.regular);
