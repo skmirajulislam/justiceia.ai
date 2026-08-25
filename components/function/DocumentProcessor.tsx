@@ -655,7 +655,7 @@ const DocumentProcessor = () => {
         }
     };
 
-    const downloadAsPDF = async (content: string, fileName: string, type: 'generated' | 'translated' = 'generated') => {
+    const downloadAsPDF = async (content: string, fileName: string, type: 'generated' | 'translated' = 'generated', language: string = 'english') => {
         try {
             const response = await fetch('/api/documents/download-pdf', {
                 method: 'POST',
@@ -665,7 +665,8 @@ const DocumentProcessor = () => {
                 body: JSON.stringify({
                     content,
                     fileName,
-                    type
+                    type,
+                    language
                 }),
             });
 
@@ -1589,7 +1590,7 @@ const DocumentProcessor = () => {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated')}
+                                                                onClick={() => downloadAsPDF(doc.translatedContent, `${doc.name}_translated`, 'translated', doc.targetLanguage)}
                                                             >
                                                                 <Download className="w-4 h-4" />
                                                             </Button>

@@ -1,15 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jsPDF from 'jspdf';
+import PDFDocument from 'pdfkit';
+import path from 'path';
+import fs from 'fs';
 
-interface StyledToken {
+/**
+ * Language → Noto Sans font family mapping.
+ * Each entry specifies the TTF files (Regular + Bold) that cover that language's script.
+ * PDFKit embeds glyphs from these fonts directly into the PDF, guaranteeing correct rendering
+ * of Hindi (Devanagari), Bengali, Tamil, Telugu, Chinese, and all Latin scripts.
+ */
+const FONT_MAP: Record<string, { regular: string; bold: string }> = {
+    hindi: {
+        regular: 'NotoSansDevanagari-Regular.ttf',
+        bold: 'NotoSansDevanagari-Bold.ttf',
+    },
+    bengali: {
+        regular: 'NotoSansBengali-Regular.ttf',
+        bold: 'NotoSansBengali-Bold.ttf',
+    },
+    tamil: {
+        regular: 'NotoSansTamil-Regular.ttf',
+        bold: 'NotoSansTamil-Bold.ttf',
+    },
+    telugu: {
+        regular: 'NotoSansTelugu-Regular.ttf',
+        bold: 'NotoSansTelugu-Bold.ttf',
+    },
+    chinese: {
+        regular: 'NotoSansSC-Regular.ttf',
+        bold: 'NotoSansSC-Regular.ttf', // SC doesn't have a separate bold; use regular
+    },
+    // Latin-based languages use NotoSans base
+    english: {
+        regular: 'NotoSans-Regular.ttf',
+        bold: 'NotoSans-Bold.ttf',
+    },
+    spanish: {
+        regular: 'NotoSans-Regular.ttf',
+        bold: 'NotoSans-Bold.ttf',
+    },
+    french: {
+        regular: 'NotoSans-Regular.ttf',
+        bold: 'NotoSans-Bold.ttf',
+    },
+    german: {
+        regular: 'NotoSans-Regular.ttf',
+        bold: 'NotoSans-Bold.ttf',
+    },
+};
+
+function getFontPaths(language: string): { regular: string; bold: string } {
+    const fontsDir = path.join(process.cwd(), 'public', 'fonts');
+    const mapping = FONT_MAP[language?.toLowerCase()] || FONT_MAP['english'];
+
+    const regularPath = path.join(fontsDir, mapping.regular);
+    const boldPath = path.join(fontsDir, mapping.bold);
+
+    // Fallback to NotoSans base if specific font file not found
+    const fallbackRegular = path.join(fontsDir, 'NotoSans-Regular.ttf');
+    const fallbackBold = path.join(fontsDir, 'NotoSans-Bold.ttf');
+
+    return {
+        regular: fs.existsSync(regularPath) ? regularPath : fallbackRegular,
+        bold: fs.existsSync(boldPath) ? boldPath : fallbackBold,
+    };
+}
+
+interface ContentBlock {
+    type: 'h1' | 'h2' | 'h3' | 'divider' | 'disclaimer' | 'list-item' | 'paragraph';
     text: string;
-    bold: boolean;
-    italic: boolean;
+    prefix?: string;
 }
 
 export async function POST(request: NextRequest) {
     try {
-        const { content, fileName, type } = await request.json();
+        const { content, fileName, type, language } = await request.json();
 
         if (!content || !fileName) {
             return NextResponse.json(
@@ -18,250 +83,183 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create PDF document
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
+        const fonts = getFontPaths(language || 'english');
+
+        // Create PDF document with PDFKit (proper Unicode support)
+        const doc = new PDFDocument({
+            size: 'A4',
+            margins: { top: 50, bottom: 50, left: 50, right: 50 },
+            bufferPages: true,
+            info: {
+                Title: fileName,
+                Author: 'Justiceia.ai',
+                Subject: type === 'translated' ? 'Translated Legal Document' : 'Generated Legal Document',
+                Creator: 'Justiceia.ai Legal Document Processing System',
+            },
         });
 
-        // Page layout metrics
-        const pageWidth = 210;
-        const pageHeight = 297;
-        const margin = 18;
-        const maxWidth = pageWidth - (margin * 2);
-        const topMargin = 22;
-        const bottomMargin = 22;
+        // Register fonts
+        doc.registerFont('NotoRegular', fonts.regular);
+        doc.registerFont('NotoBold', fonts.bold);
 
-        let yPosition = topMargin;
-
-        // Clean initial raw HTML if any
-        const cleanedRaw = cleanHtml(content);
-
-        // Document Title Banner at top of page 1
-        const docTitle = type === 'translated' ? `TRANSLATED DOCUMENT: ${fileName.toUpperCase()}` : fileName.toUpperCase();
-        doc.setFont('times', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(15, 23, 42); // slate-900
-
-        const titleLines = doc.splitTextToSize(normalizeText(docTitle), maxWidth);
-        for (const tLine of titleLines) {
-            doc.text(tLine, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += 6;
+        // For translated documents that use non-Latin scripts, we also need the Latin font
+        // for English words/headers that may appear in the document
+        const latinFonts = getFontPaths('english');
+        if (fonts.regular !== latinFonts.regular) {
+            doc.registerFont('LatinRegular', latinFonts.regular);
+            doc.registerFont('LatinBold', latinFonts.bold);
         }
 
-        // Elegant double separator rule
-        yPosition += 2;
-        doc.setDrawColor(30, 41, 59);
-        doc.setLineWidth(0.6);
-        doc.line(margin, yPosition, pageWidth - margin, yPosition);
-        yPosition += 1.2;
-        doc.setLineWidth(0.2);
-        doc.line(margin, yPosition, pageWidth - margin, yPosition);
-        yPosition += 6;
+        // Collect PDF output into buffer
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
-        // Parse content into distinct blocks
-        const blocks = parseContentToBlocks(cleanedRaw);
+        const pdfPromise = new Promise<Buffer>((resolve, reject) => {
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', reject);
+        });
+
+        // Page dimensions
+        const pageWidth = 595.28; // A4
+        const contentWidth = pageWidth - 100; // 50mm margins each side
+
+        // ── Document Title Banner ──
+        const docTitle = type === 'translated'
+            ? `TRANSLATED DOCUMENT: ${fileName.toUpperCase()}`
+            : fileName.toUpperCase();
+
+        doc.font('NotoBold').fontSize(13).fillColor('#0f172a');
+        doc.text(docTitle, 50, 50, { align: 'center', width: contentWidth });
+        doc.moveDown(0.3);
+
+        // Double separator line
+        const titleEndY = doc.y;
+        doc.moveTo(50, titleEndY).lineTo(pageWidth - 50, titleEndY)
+            .lineWidth(1.2).strokeColor('#1e293b').stroke();
+        doc.moveTo(50, titleEndY + 2.5).lineTo(pageWidth - 50, titleEndY + 2.5)
+            .lineWidth(0.4).stroke();
+        doc.y = titleEndY + 12;
+
+        // ── Parse and render content blocks ──
+        const cleanedContent = cleanHtml(content);
+        const blocks = parseContentToBlocks(cleanedContent);
 
         for (const block of blocks) {
-            // Ensure we aren't near page bottom before starting a block
-            if (yPosition > pageHeight - bottomMargin - 10) {
+            // Check if we need a new page (leave room for at least 30pt)
+            if (doc.y > 750) {
                 doc.addPage();
-                yPosition = topMargin;
             }
 
             switch (block.type) {
                 case 'h1': {
-                    yPosition += 3;
-                    if (yPosition > pageHeight - bottomMargin - 15) {
-                        doc.addPage();
-                        yPosition = topMargin;
-                    }
-                    doc.setFont('times', 'bold');
-                    doc.setFontSize(12);
-                    doc.setTextColor(15, 23, 42);
-
-                    const lines = doc.splitTextToSize(block.text, maxWidth);
-                    for (const line of lines) {
-                        doc.text(line, margin, yPosition);
-                        yPosition += 5.5;
-                    }
-                    yPosition += 2;
+                    doc.moveDown(0.5);
+                    doc.font('NotoBold').fontSize(12).fillColor('#0f172a');
+                    doc.text(block.text, { width: contentWidth });
+                    doc.moveDown(0.3);
                     break;
                 }
-
                 case 'h2': {
-                    yPosition += 2.5;
-                    if (yPosition > pageHeight - bottomMargin - 12) {
-                        doc.addPage();
-                        yPosition = topMargin;
-                    }
-                    doc.setFont('times', 'bold');
-                    doc.setFontSize(11);
-                    doc.setTextColor(15, 23, 42);
-
-                    const lines = doc.splitTextToSize(block.text, maxWidth);
-                    for (const line of lines) {
-                        doc.text(line, margin, yPosition);
-                        yPosition += 5.2;
-                    }
-                    yPosition += 1.5;
+                    doc.moveDown(0.4);
+                    doc.font('NotoBold').fontSize(11).fillColor('#0f172a');
+                    doc.text(block.text, { width: contentWidth });
+                    doc.moveDown(0.2);
                     break;
                 }
-
                 case 'h3': {
-                    yPosition += 2;
-                    if (yPosition > pageHeight - bottomMargin - 10) {
-                        doc.addPage();
-                        yPosition = topMargin;
-                    }
-                    doc.setFont('times', 'bold');
-                    doc.setFontSize(10.5);
-                    doc.setTextColor(30, 41, 59);
-
-                    const lines = doc.splitTextToSize(block.text, maxWidth);
-                    for (const line of lines) {
-                        doc.text(line, margin, yPosition);
-                        yPosition += 5.0;
-                    }
-                    yPosition += 1;
+                    doc.moveDown(0.3);
+                    doc.font('NotoBold').fontSize(10.5).fillColor('#1e293b');
+                    doc.text(block.text, { width: contentWidth });
+                    doc.moveDown(0.15);
                     break;
                 }
-
                 case 'divider': {
-                    yPosition += 2;
-                    if (yPosition > pageHeight - bottomMargin - 8) {
-                        doc.addPage();
-                        yPosition = topMargin;
-                    }
-                    doc.setDrawColor(203, 213, 225); // slate-300
-                    doc.setLineWidth(0.3);
-                    doc.line(margin, yPosition, pageWidth - margin, yPosition);
-                    yPosition += 4;
+                    doc.moveDown(0.3);
+                    const divY = doc.y;
+                    doc.moveTo(50, divY).lineTo(pageWidth - 50, divY)
+                        .lineWidth(0.4).strokeColor('#cbd5e1').stroke();
+                    doc.y = divY + 8;
                     break;
                 }
-
                 case 'disclaimer': {
-                    yPosition += 2;
-                    doc.setFont('times', 'italic');
-                    doc.setFontSize(9);
-                    doc.setTextColor(71, 85, 105); // slate-600
+                    doc.moveDown(0.3);
+                    // Draw disclaimer box background
+                    const boxY = doc.y;
+                    const textHeight = doc.font('NotoRegular').fontSize(9)
+                        .heightOfString(block.text, { width: contentWidth - 16 });
+                    const boxHeight = textHeight + 12;
 
-                    const discLines = doc.splitTextToSize(block.text, maxWidth - 8);
-                    const boxHeight = discLines.length * 4.5 + 4;
+                    doc.save();
+                    doc.roundedRect(50, boxY, contentWidth, boxHeight, 3)
+                        .fillAndStroke('#f8fafc', '#e2e8f0');
+                    doc.restore();
 
-                    if (yPosition + boxHeight > pageHeight - bottomMargin) {
-                        doc.addPage();
-                        yPosition = topMargin;
-                    }
-
-                    // Background box for disclaimer
-                    doc.setFillColor(248, 250, 252); // slate-50
-                    doc.setDrawColor(226, 232, 240); // slate-200
-                    doc.roundedRect(margin, yPosition, maxWidth, boxHeight, 1.5, 1.5, 'FD');
-
-                    let lineY = yPosition + 4;
-                    for (const line of discLines) {
-                        doc.text(line, margin + 4, lineY);
-                        lineY += 4.5;
-                    }
-                    yPosition += boxHeight + 3;
+                    doc.font('NotoRegular').fontSize(9).fillColor('#475569');
+                    doc.text(block.text, 58, boxY + 6, { width: contentWidth - 16 });
+                    doc.y = boxY + boxHeight + 6;
                     break;
                 }
-
                 case 'list-item': {
-                    const bulletIndent = 6;
-                    doc.setFontSize(10);
-                    doc.setTextColor(15, 23, 42);
-
-                    // Render bullet prefix
                     const bulletPrefix = block.prefix || '•';
-                    doc.setFont('times', 'bold');
-                    doc.text(bulletPrefix, margin + 1, yPosition);
+                    doc.font('NotoBold').fontSize(10).fillColor('#0f172a');
+                    const bulletWidth = doc.widthOfString(bulletPrefix + '  ');
 
-                    // Render text body with hanging indent
-                    yPosition = renderStyledText(
-                        doc,
-                        block.text,
-                        margin + bulletIndent,
-                        yPosition,
-                        maxWidth - bulletIndent,
-                        5.0,
-                        pageHeight,
-                        topMargin,
-                        bottomMargin,
-                        10
-                    );
-                    yPosition += 1.5;
+                    doc.text(bulletPrefix, 50, doc.y, { continued: true });
+                    doc.text('  ', { continued: true });
+                    // Render the rest with mixed styling
+                    renderInlineFormatted(doc, block.text, contentWidth - bulletWidth);
+                    doc.moveDown(0.15);
                     break;
                 }
-
                 case 'paragraph':
                 default: {
-                    doc.setFontSize(10);
-                    doc.setTextColor(15, 23, 42);
-
-                    yPosition = renderStyledText(
-                        doc,
-                        block.text,
-                        margin,
-                        yPosition,
-                        maxWidth,
-                        5.2,
-                        pageHeight,
-                        topMargin,
-                        bottomMargin,
-                        10
-                    );
-                    yPosition += 2.5;
+                    renderInlineFormatted(doc, block.text, contentWidth);
+                    doc.moveDown(0.35);
                     break;
                 }
             }
         }
 
-        // Add professional running header and footer with page numbers
-        const totalPages = doc.getNumberOfPages();
-        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-            doc.setPage(pageNum);
+        // ── Add running headers/footers ──
+        const pages = doc.bufferedPageRange();
+        const totalPages = pages.count;
 
-            // Running Header (pages 2+)
-            if (pageNum > 1) {
-                doc.setFont('times', 'italic');
-                doc.setFontSize(8);
-                doc.setTextColor(100, 116, 139);
-                doc.text(
-                    normalizeText(fileName).toUpperCase(),
-                    margin,
-                    12
-                );
-                doc.setDrawColor(226, 232, 240);
-                doc.setLineWidth(0.2);
-                doc.line(margin, 14, pageWidth - margin, 14);
+        for (let i = 0; i < totalPages; i++) {
+            doc.switchToPage(i);
+
+            // Footer separator line
+            doc.save();
+            doc.moveTo(50, 790).lineTo(pageWidth - 50, 790)
+                .lineWidth(0.3).strokeColor('#e2e8f0').stroke();
+
+            // Footer text
+            doc.font('NotoRegular').fontSize(8).fillColor('#64748b');
+            doc.text('Justiceia.ai • Legal Document Processing System', 50, 798, {
+                width: contentWidth / 2,
+                align: 'left',
+            });
+            doc.text(`Page ${i + 1} of ${totalPages}`, pageWidth / 2, 798, {
+                width: contentWidth / 2,
+                align: 'right',
+            });
+            doc.restore();
+
+            // Running header on pages 2+
+            if (i > 0) {
+                doc.save();
+                doc.font('NotoRegular').fontSize(8).fillColor('#64748b');
+                doc.text(fileName.toUpperCase(), 50, 30, {
+                    width: contentWidth,
+                    align: 'left',
+                });
+                doc.moveTo(50, 42).lineTo(pageWidth - 50, 42)
+                    .lineWidth(0.2).strokeColor('#e2e8f0').stroke();
+                doc.restore();
             }
-
-            // Running Footer (all pages)
-            doc.setDrawColor(226, 232, 240);
-            doc.setLineWidth(0.2);
-            doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
-
-            doc.setFont('times', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(100, 116, 139);
-            doc.text(
-                'Justiceia.ai • Legal Document Processing System',
-                margin,
-                pageHeight - 9
-            );
-            doc.text(
-                `Page ${pageNum} of ${totalPages}`,
-                pageWidth - margin,
-                pageHeight - 9,
-                { align: 'right' }
-            );
         }
 
-        // Generate PDF buffer
-        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+        doc.end();
+
+        const pdfBuffer = await pdfPromise;
 
         return new NextResponse(pdfBuffer, {
             headers: {
@@ -271,18 +269,74 @@ export async function POST(request: NextRequest) {
                 'Content-Length': pdfBuffer.length.toString(),
             },
         });
-
-    } catch (error) {
+    } catch (error: any) {
         console.error('PDF generation error:', error);
         return NextResponse.json(
-            { error: 'Failed to generate PDF. Please try again.' },
+            { error: 'Failed to generate PDF. Details: ' + (error?.message || 'Unknown error') },
             { status: 500 }
         );
     }
 }
 
 /**
- * Strips HTML tags and unescapes entities safely
+ * Renders text with inline **bold** and *italic* markdown formatting using PDFKit.
+ */
+function renderInlineFormatted(doc: PDFKit.PDFDocument, text: string, maxWidth: number) {
+    const segments = parseInlineFormatting(text);
+    let isFirst = true;
+
+    for (const seg of segments) {
+        if (seg.bold) {
+            doc.font('NotoBold');
+        } else if (seg.italic) {
+            doc.font('NotoRegular'); // PDFKit doesn't always have italic variant; use regular
+        } else {
+            doc.font('NotoRegular');
+        }
+        doc.fontSize(10).fillColor('#0f172a');
+
+        if (isFirst) {
+            doc.text(seg.text, { width: maxWidth, continued: segments.indexOf(seg) < segments.length - 1 });
+            isFirst = false;
+        } else {
+            doc.text(seg.text, { continued: segments.indexOf(seg) < segments.length - 1 });
+        }
+    }
+}
+
+interface TextSegment {
+    text: string;
+    bold: boolean;
+    italic: boolean;
+}
+
+function parseInlineFormatting(text: string): TextSegment[] {
+    const segments: TextSegment[] = [];
+    // Split by bold (**text**) and italic (*text*)
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+
+    for (const part of parts) {
+        if (!part) continue;
+
+        if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+            segments.push({ text: part.slice(2, -2), bold: true, italic: false });
+        } else if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+            segments.push({ text: part.slice(1, -1), bold: false, italic: true });
+        } else {
+            segments.push({ text: part, bold: false, italic: false });
+        }
+    }
+
+    // If no segments were created, return the original text
+    if (segments.length === 0) {
+        segments.push({ text, bold: false, italic: false });
+    }
+
+    return segments;
+}
+
+/**
+ * Strips HTML tags and unescapes entities
  */
 function cleanHtml(content: string): string {
     if (!content) return '';
@@ -320,36 +374,13 @@ function cleanHtml(content: string): string {
 }
 
 /**
- * Normalizes Unicode characters to standard printable ASCII / Latin-1 for jsPDF Times Roman
- */
-function normalizeText(text: string): string {
-    if (!text) return '';
-    return text
-        .replace(/[\u2018\u2019]/g, "'")
-        .replace(/[\u201C\u201D]/g, '"')
-        .replace(/[\u2013\u2014]/g, '-')
-        .replace(/\u2026/g, '...')
-        .replace(/\u00A0/g, ' ')
-        .replace(/[^\x20-\x7E\n\r\t]/g, (char) => {
-            const code = char.charCodeAt(0);
-            if (code >= 160 && code <= 255) return char;
-            return ' ';
-        });
-}
-
-interface ContentBlock {
-    type: 'h1' | 'h2' | 'h3' | 'divider' | 'disclaimer' | 'list-item' | 'paragraph';
-    text: string;
-    prefix?: string;
-}
-
-/**
- * Parses markdown/legal text into semantic blocks while removing raw markdown tokens
+ * Parses markdown/legal text into semantic blocks while removing raw markdown tokens.
+ * Unlike the old jsPDF version, this does NOT strip non-ASCII characters —
+ * Hindi, Bengali, Tamil, Telugu, Chinese, etc. are all preserved exactly as-is.
  */
 function parseContentToBlocks(content: string): ContentBlock[] {
     const blocks: ContentBlock[] = [];
     const lines = content.split('\n');
-
     let currentParagraphLines: string[] = [];
 
     const flushParagraph = () => {
@@ -382,7 +413,7 @@ function parseContentToBlocks(content: string): ContentBlock[] {
         if (/^#\s+/.test(trimmed)) {
             flushParagraph();
             const headingText = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
-            blocks.push({ type: 'h1', text: normalizeText(headingText) });
+            blocks.push({ type: 'h1', text: headingText });
             continue;
         }
 
@@ -390,15 +421,15 @@ function parseContentToBlocks(content: string): ContentBlock[] {
         if (/^##\s+/.test(trimmed)) {
             flushParagraph();
             const headingText = trimmed.replace(/^##+\s*/, '').replace(/\*\*/g, '').trim();
-            blocks.push({ type: 'h2', text: normalizeText(headingText) });
+            blocks.push({ type: 'h2', text: headingText });
             continue;
         }
 
-        // H3 / H4 Heading (### Heading, #### Heading)
+        // H3+ Heading (### Heading, #### Heading)
         if (/^###+\s+/.test(trimmed)) {
             flushParagraph();
             const headingText = trimmed.replace(/^###+\s*/, '').replace(/\*\*/g, '').trim();
-            blocks.push({ type: 'h3', text: normalizeText(headingText) });
+            blocks.push({ type: 'h3', text: headingText });
             continue;
         }
 
@@ -406,7 +437,7 @@ function parseContentToBlocks(content: string): ContentBlock[] {
         if (/^(>|DISCLAIMER:)/i.test(trimmed)) {
             flushParagraph();
             const disclaimerText = trimmed.replace(/^>\s*/, '').replace(/\*\*/g, '').replace(/^\*|\*$/g, '').trim();
-            blocks.push({ type: 'disclaimer', text: normalizeText(disclaimerText) });
+            blocks.push({ type: 'disclaimer', text: disclaimerText });
             continue;
         }
 
@@ -434,11 +465,11 @@ function parseContentToBlocks(content: string): ContentBlock[] {
             continue;
         }
 
-        // Standalone bold all-caps header lines like **STATEMENT OF FACTS** or **COMPLAINT NO. [___]**
+        // Standalone bold all-caps header lines like **STATEMENT OF FACTS**
         if (/^\*\*[A-Z0-9\s.,:\-_/\[\]\(\)]+\*\*$/.test(trimmed) && trimmed.length < 100) {
             flushParagraph();
             const cleanHeader = trimmed.slice(2, -2).trim();
-            blocks.push({ type: 'h2', text: normalizeText(cleanHeader) });
+            blocks.push({ type: 'h2', text: cleanHeader });
             continue;
         }
 
@@ -447,131 +478,4 @@ function parseContentToBlocks(content: string): ContentBlock[] {
 
     flushParagraph();
     return blocks;
-}
-
-/**
- * Tokenizes markdown paragraph with inline bold (**text**) and italics (*text*)
- */
-function tokenizeFormattedText(text: string): StyledToken[] {
-    const tokens: StyledToken[] = [];
-    const normalized = normalizeText(text);
-
-    // Regex to split by bold (**bold**) or italic (*italic* or _italic_)
-    const parts = normalized.split(/(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
-
-    for (const part of parts) {
-        if (!part) continue;
-
-        if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-            const inner = part.slice(2, -2);
-            const words = inner.split(/(\s+)/);
-            for (const w of words) {
-                if (w) tokens.push({ text: w, bold: true, italic: false });
-            }
-        } else if ((part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
-            (part.startsWith('_') && part.endsWith('_') && part.length >= 2)) {
-            const inner = part.slice(1, -1);
-            const words = inner.split(/(\s+)/);
-            for (const w of words) {
-                if (w) tokens.push({ text: w, bold: false, italic: true });
-            }
-        } else {
-            const words = part.split(/(\s+)/);
-            for (const w of words) {
-                if (w) tokens.push({ text: w, bold: false, italic: false });
-            }
-        }
-    }
-
-    return tokens;
-}
-
-/**
- * Mathematical word-by-word line packing & rendering engine for jsPDF
- * Guarantees zero text overlap, correct styling per word, and flawless multi-page breaks.
- */
-function renderStyledText(
-    doc: jsPDF,
-    text: string,
-    x: number,
-    startY: number,
-    maxWidth: number,
-    lineHeight: number,
-    pageHeight: number,
-    topMargin: number,
-    bottomMargin: number,
-    fontSize: number = 10
-): number {
-    let currentY = startY;
-
-    // Handle multiline paragraph preserved breaks
-    const subParagraphs = text.split('\n');
-
-    for (const subPara of subParagraphs) {
-        const trimmedSub = subPara.trim();
-        if (!trimmedSub) {
-            currentY += lineHeight * 0.6;
-            continue;
-        }
-
-        const tokens = tokenizeFormattedText(trimmedSub);
-
-        // Group tokens into lines fitting maxWidth
-        const lines: StyledToken[][] = [];
-        let currentLine: StyledToken[] = [];
-        let currentLineWidth = 0;
-
-        for (const token of tokens) {
-            doc.setFont('times', token.bold ? 'bold' : token.italic ? 'italic' : 'normal');
-            doc.setFontSize(fontSize);
-
-            const tokenWidth = doc.getTextWidth(token.text);
-
-            if (token.text === ' ' || token.text === '\t') {
-                if (currentLine.length > 0) {
-                    currentLine.push(token);
-                    currentLineWidth += tokenWidth;
-                }
-                continue;
-            }
-
-            if (currentLine.length > 0 && (currentLineWidth + tokenWidth) > maxWidth) {
-                lines.push(currentLine);
-                currentLine = [token];
-                currentLineWidth = tokenWidth;
-            } else {
-                currentLine.push(token);
-                currentLineWidth += tokenWidth;
-            }
-        }
-
-        if (currentLine.length > 0) {
-            lines.push(currentLine);
-        }
-
-        // Render packed lines on canvas
-        for (const line of lines) {
-            if (currentY > pageHeight - bottomMargin) {
-                doc.addPage();
-                currentY = topMargin;
-            }
-
-            let currentX = x;
-
-            for (const token of line) {
-                doc.setFont('times', token.bold ? 'bold' : token.italic ? 'italic' : 'normal');
-                doc.setFontSize(fontSize);
-
-                if (token.text.trim()) {
-                    doc.text(token.text, currentX, currentY);
-                }
-
-                currentX += doc.getTextWidth(token.text);
-            }
-
-            currentY += lineHeight;
-        }
-    }
-
-    return currentY;
 }
