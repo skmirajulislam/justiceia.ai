@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, BookOpen, Filter, Download, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, BookOpen, Filter, Download, Eye, ExternalLink, FileText, Scale } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,6 +34,7 @@ const LegalLibrary = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [documents, setDocuments] = useState<LegalDocument[]>([]);
     const [loading, setLoading] = useState(true);
+    const [viewingDoc, setViewingDoc] = useState<LegalDocument | null>(null);
     const { toast } = useToast();
 
     const categories = [
@@ -100,8 +102,8 @@ const LegalLibrary = () => {
         }
     };
 
-    const handleViewDocument = (pdfUrl: string) => {
-        window.open(pdfUrl, '_blank');
+    const handleViewDocument = (doc: LegalDocument) => {
+        setViewingDoc(doc);
     };
 
     const handleDownloadDocument = (pdfUrl: string, title: string) => {
@@ -259,7 +261,7 @@ const LegalLibrary = () => {
                                                 size="sm"
                                                 variant="outline"
                                                 className="flex-1 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
-                                                onClick={() => handleViewDocument(doc.pdf_url)}
+                                                onClick={() => handleViewDocument(doc)}
                                             >
                                                 <Eye className="w-4 h-4 mr-2" />
                                                 View
@@ -302,6 +304,67 @@ const LegalLibrary = () => {
                     )}
                 </div>
             </div>
+
+            {/* Large Interactive PDF Reader Popup Modal */}
+            {viewingDoc && (
+                <Dialog open={!!viewingDoc} onOpenChange={(open) => !open && setViewingDoc(null)}>
+                    <DialogContent className="max-w-6xl w-[96vw] h-[92vh] max-h-[92vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl overflow-hidden">
+                        <DialogHeader className="pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-8">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" className="text-xs bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800">
+                                            {viewingDoc.category}
+                                        </Badge>
+                                        {viewingDoc.court && (
+                                            <Badge variant="secondary" className="text-xs">
+                                                {viewingDoc.court}
+                                            </Badge>
+                                        )}
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                                            Published {new Date(viewingDoc.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                                        {viewingDoc.title}
+                                    </DialogTitle>
+                                    <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                        <span>Author: <strong className="text-slate-800 dark:text-slate-200">{viewingDoc.author.name}</strong> ({viewingDoc.author.role?.replace('_', ' ') || 'Lawyer'})</span>
+                                    </DialogDescription>
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end sm:self-auto">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(viewingDoc.pdf_url, '_blank')}
+                                        className="h-8 px-3 text-xs flex items-center gap-1.5 border-slate-200 dark:border-slate-700"
+                                        title="Open PDF in new browser tab"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" /> Full Tab
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleDownloadDocument(viewingDoc.pdf_url, viewingDoc.title)}
+                                        className="h-8 px-3 bg-sky-600 hover:bg-sky-700 text-white text-xs flex items-center gap-1.5 shadow-sm"
+                                    >
+                                        <Download className="w-3.5 h-3.5" /> Download
+                                    </Button>
+                                </div>
+                            </div>
+                        </DialogHeader>
+
+                        {/* PDF Viewport Container */}
+                        <div className="flex-1 w-full relative min-h-0 pt-3 bg-slate-100 dark:bg-slate-950 rounded-xl overflow-hidden shadow-inner">
+                            <iframe
+                                src={`${viewingDoc.pdf_url}#toolbar=1&navpanes=0`}
+                                title={viewingDoc.title}
+                                className="w-full h-full rounded-lg border-0 bg-white dark:bg-slate-950"
+                            />
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };

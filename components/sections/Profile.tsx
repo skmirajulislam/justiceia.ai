@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -406,8 +407,9 @@ const Profile = () => {
                                             <span className="text-[10px] text-sky-200">Uploading...</span>
                                         </div>
                                     ) : (profile?.avatar_url || profile?.advocateProfile?.image_url) ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
+                                        <Image
+                                            width={96}
+                                            height={96}
                                             src={profile.avatar_url || profile.advocateProfile?.image_url || ''}
                                             alt="Profile Avatar"
                                             className="w-full h-full object-cover"

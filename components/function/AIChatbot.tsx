@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -242,8 +243,9 @@ const AIChatbot = () => {
                                                         >
                                                             {message.role === 'user' ? (
                                                                 session?.user?.avatar_url ? (
-                                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                                    <img
+                                                                    <Image
+                                                                        width={32}
+                                                                        height={32}
                                                                         src={session.user.avatar_url}
                                                                         alt="User Profile"
                                                                         className="w-full h-full object-cover"

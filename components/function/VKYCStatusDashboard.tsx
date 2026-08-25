@@ -264,8 +264,9 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                     <div className="flex items-start sm:items-center space-x-4">
                         {(profile.avatar_url || profile.advocateProfile?.image_url) ? (
                             <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-emerald-400/50 shadow-lg shrink-0">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
+                                    width={56}
+                                    height={56}
                                     src={profile.avatar_url || profile.advocateProfile?.image_url || ''}
                                     alt={advocateName}
                                     className="w-full h-full object-cover"
@@ -529,6 +530,7 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                                                         src={doc.document_url}
                                                         alt={doc.document_type}
                                                         fill
+                                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                                         className="object-cover"
                                                     />
                                                 ) : (
@@ -663,6 +665,7 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                                     src={selectedDoc.document_url}
                                     alt={selectedDoc.document_type}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, 800px"
                                     className="object-contain"
                                 />
                             )}
@@ -718,8 +721,9 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                                 <div className="flex items-center space-x-3 p-2 bg-white dark:bg-slate-900 rounded-lg border border-emerald-200 dark:border-emerald-800">
                                     <div className="relative w-12 h-12 rounded-xl overflow-hidden ring-1 ring-emerald-500 shrink-0 bg-slate-100 dark:bg-slate-800">
                                         {verifyResult.avatar_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
+                                            <Image
+                                                width={48}
+                                                height={48}
                                                 src={verifyResult.avatar_url}
                                                 alt={verifyResult.advocateName}
                                                 className="w-full h-full object-cover"

@@ -164,12 +164,12 @@ export const WebRTCProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 // Ensure Next.js Pages API socket handler is mounted
                 await fetch('/api/socket').catch(() => {});
 
-                activeSocket = io('/', {
+                activeSocket = io({
                     path: '/api/socket',
                     reconnection: true,
-                    reconnectionAttempts: 10,
-                    reconnectionDelay: 1000,
-                    transports: ['polling', 'websocket'],
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 2000,
+                    transports: ['websocket', 'polling'],
                 });
 
                 activeSocket.on('connect', () => {

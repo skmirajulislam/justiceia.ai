@@ -1,16 +1,6 @@
 // Linear, safe PDF text extraction without polynomial regular expressions
-export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> {
+function extractLinearBytes(arrayBuffer: ArrayBuffer): string {
     try {
-        // Try advanced PDF extraction using pdfjs-dist first
-        try {
-            const advancedText = await extractPDFTextAdvanced(arrayBuffer);
-            if (advancedText && advancedText.length > 20) {
-                return advancedText;
-            }
-        } catch {
-            // Fallback to safe linear byte scanner
-        }
-
         const data = new Uint8Array(arrayBuffer);
         const textChunks: string[] = [];
         let inParentheses = false;
@@ -69,23 +59,39 @@ export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> 
         return extractedText.length > 10 ? extractedText : 'No readable text found in PDF';
 
     } catch (error) {
-        console.error('PDF text extraction error:', error);
+        console.error('Linear PDF text extraction error:', error);
         return 'Failed to extract text from PDF';
     }
 }
 
-// Advanced PDF.js text extraction
+export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> {
+    try {
+        const advancedText = await extractPDFTextAdvanced(arrayBuffer);
+        if (advancedText && advancedText.length > 20) {
+            return advancedText;
+        }
+    } catch {
+        // Fallback
+    }
+    return extractLinearBytes(arrayBuffer);
+}
+
+// Advanced PDF.js text extraction with safe node compatibility
 export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<string> {
     try {
-        const pdfjsLib = await import('pdfjs-dist');
+        // Attempt dynamic import with fallback
+        const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.mjs').catch(() => import('pdfjs-dist'));
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        if (pdfjsLib?.GlobalWorkerOptions) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        }
 
         const loadingTask = pdfjsLib.getDocument({
-            data: arrayBuffer,
+            data: new Uint8Array(arrayBuffer),
             useSystemFonts: true,
             disableFontFace: true,
-            verbosity: 0
+            verbosity: 0,
+            isEvalSupported: false,
         });
 
         const pdf = await loadingTask.promise;
@@ -109,17 +115,16 @@ export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<
                 if (pageText.trim()) {
                     pages.push(pageText.trim());
                 }
-            } catch (pageError) {
-                console.warn(`Error extracting text from page ${i}:`, pageError);
+            } catch {
                 continue;
             }
         }
 
         await pdf.destroy();
-        return pages.join('\n\n').trim();
+        const fullText = pages.join('\n\n').trim();
+        return fullText.length > 10 ? fullText : extractLinearBytes(arrayBuffer);
 
     } catch (error) {
-        console.error('Advanced PDF extraction error:', error);
-        throw error;
+        return extractLinearBytes(arrayBuffer);
     }
 }

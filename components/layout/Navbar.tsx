@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Menu, X, Scale, User, FileText, Video, Brain, LogIn, LogOut, Settings, UserCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -118,8 +119,9 @@ const Navbar = () => {
                   <Button variant="ghost" className="flex items-center space-x-2 text-sm font-medium hover:bg-slate-100/80 dark:hover:bg-slate-800 px-2 py-1.5 rounded-lg">
                     {session.user?.avatar_url ? (
                       <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-sky-500/30">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
+                          width={24}
+                          height={24}
                           src={session.user.avatar_url}
                           alt={getUserDisplayName()}
                           className="w-full h-full object-cover"
@@ -221,8 +223,9 @@ const Navbar = () => {
                   >
                     {session.user?.avatar_url ? (
                       <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-sky-500/30 shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
+                          width={20}
+                          height={20}
                           src={session.user.avatar_url}
                           alt={getUserDisplayName()}
                           className="w-full h-full object-cover"
