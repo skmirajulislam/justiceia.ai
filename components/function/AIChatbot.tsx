@@ -65,8 +65,6 @@ const AIChatbot = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [apiKey, setApiKey] = useState('');
-    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -109,25 +107,6 @@ const AIChatbot = () => {
         checkAuth();
     }, [session, authLoading, router]);
 
-    const handleApiKeySubmit = () => {
-        if (!apiKey.trim()) {
-            toast({
-                title: "API Key Required",
-                description: "Please enter your Gemini API key to continue.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        // Store custom key in in-memory component state
-        setShowApiKeyInput(false);
-
-        toast({
-            title: "API Key Configured",
-            description: "Custom Gemini API key configured for this session.",
-        });
-    };
-
     const sendMessage = async () => {
         if (!inputMessage.trim() || isLoading) return;
 
@@ -149,16 +128,12 @@ const AIChatbot = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: currentInput,
-                    customApiKey: apiKey || undefined
                 }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                if (data.requiresApiKey) {
-                    setShowApiKeyInput(true);
-                }
                 throw new Error(data.error || 'Failed to get response from AI');
             }
 
@@ -181,7 +156,7 @@ const AIChatbot = () => {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'I apologize, but I encountered an error processing your request. Please ensure an API key is configured on the server or enter a custom key.',
+                content: 'I apologize, but I encountered an error processing your request. Please check your connection or try again later.',
                 timestamp: new Date()
             };
 
@@ -205,11 +180,6 @@ const AIChatbot = () => {
             content: 'Chat cleared! How can I help you with your **legal questions**?',
             timestamp: new Date()
         }]);
-    };
-
-    const resetApiKey = () => {
-        setApiKey('');
-        setShowApiKeyInput(true);
     };
 
     if (authLoading) {
@@ -249,49 +219,11 @@ const AIChatbot = () => {
                                 <Button variant="outline" size="sm" onClick={clearChat}>
                                     Clear Chat
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={resetApiKey}>
-                                    {apiKey ? 'Change Key' : 'Set Custom Key'}
-                                </Button>
                             </div>
                         </CardHeader>
 
-                        {showApiKeyInput ? (
-                            <CardContent className="flex flex-col items-center justify-center h-full space-y-4 p-6">
-                                <div className="text-center space-y-2">
-                                    <Bot className="w-16 h-16 mx-auto text-sky-500" />
-                                    <h3 className="text-lg font-semibold">Custom API Key Setup</h3>
-                                    <p className="text-slate-600 dark:text-slate-400 max-w-md text-sm">
-                                        Enter your Google Gemini API key if not configured in the server environment. Key is stored securely in memory for this session only.
-                                    </p>
-                                </div>
-                                <div className="w-full max-w-md space-y-3">
-                                    <Input
-                                        type="password"
-                                        placeholder="Enter your Gemini API key"
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleApiKeySubmit()}
-                                    />
-                                    <div className="flex gap-2">
-                                        <Button variant="outline" onClick={() => setShowApiKeyInput(false)} className="flex-1">
-                                            Cancel
-                                        </Button>
-                                        <Button onClick={handleApiKeySubmit} className="flex-1 bg-sky-600 hover:bg-sky-700">
-                                            Apply Key
-                                        </Button>
-                                    </div>
-                                    <p className="text-xs text-slate-500 text-center">
-                                        Get your free API key from{' '}
-                                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:underline">
-                                            Google AI Studio
-                                        </a>
-                                    </p>
-                                </div>
-                            </CardContent>
-                        ) : (
-                            <>
-                                <CardContent className="flex-1 p-0 overflow-hidden">
-                                    <ScrollArea className="h-full px-3 sm:px-6" ref={chatContainerRef}>
+                        <CardContent className="flex-1 p-0 overflow-hidden">
+                            <ScrollArea className="h-full px-3 sm:px-6" ref={chatContainerRef}>
                                         <div className="space-y-4 py-4">
                                             {messages.map((message) => (
                                                 <div
@@ -300,18 +232,27 @@ const AIChatbot = () => {
                                                 >
                                                     <div
                                                         className={`flex max-w-[95%] sm:max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                                                            } items-start space-x-2`}
+                                                            } items-start gap-3`}
                                                     >
                                                         <div
-                                                            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${message.role === 'user'
-                                                                ? 'bg-sky-600 text-white ml-2'
-                                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 mr-2'
+                                                            className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shadow-sm ${message.role === 'user'
+                                                                ? 'bg-sky-600 text-white ring-1 ring-sky-500/30'
+                                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
                                                                 }`}
                                                         >
                                                             {message.role === 'user' ? (
-                                                                <User className="w-4 h-4" />
+                                                                session?.user?.avatar_url ? (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img
+                                                                        src={session.user.avatar_url}
+                                                                        alt="User Profile"
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <User className="w-4 h-4" />
+                                                                )
                                                             ) : (
-                                                                <Bot className="w-4 h-4" />
+                                                                <Bot className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                                                             )}
                                                         </div>
                                                         <div
@@ -331,9 +272,9 @@ const AIChatbot = () => {
                                             ))}
                                             {isLoading && (
                                                 <div className="flex justify-start">
-                                                    <div className="flex items-start space-x-2 max-w-[80%]">
-                                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 flex items-center justify-center mr-2">
-                                                            <Bot className="w-4 h-4" />
+                                                    <div className="flex items-start gap-3 max-w-[80%]">
+                                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                                                            <Bot className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                                                         </div>
                                                         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3">
                                                             <div className="flex space-x-1.5 items-center">
@@ -345,35 +286,33 @@ const AIChatbot = () => {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div ref={messagesEndRef} />
-                                        </div>
-                                    </ScrollArea>
-                                </CardContent>
-
-                                <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-xl">
-                                    <div className="flex space-x-2">
-                                        <Input
-                                            value={inputMessage}
-                                            onChange={(e) => setInputMessage(e.target.value)}
-                                            onKeyDown={handleKeyPress}
-                                            placeholder="Ask any legal question (e.g., Section 138 NI Act, Tenant Rights, Bail procedure)..."
-                                            disabled={isLoading}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            onClick={sendMessage}
-                                            disabled={isLoading || !inputMessage.trim()}
-                                            className="px-4 bg-sky-600 hover:bg-sky-700 text-white"
-                                        >
-                                            <Send className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                                        This AI provides general legal information and should not replace tailored professional legal advice.
-                                    </p>
+                                    <div ref={messagesEndRef} />
                                 </div>
-                            </>
-                        )}
+                            </ScrollArea>
+                        </CardContent>
+
+                        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-xl">
+                            <div className="flex space-x-2">
+                                <Input
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    onKeyDown={handleKeyPress}
+                                    placeholder="Ask any legal question (e.g., Section 138 NI Act, Tenant Rights, Bail procedure)..."
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                />
+                                <Button
+                                    onClick={sendMessage}
+                                    disabled={isLoading || !inputMessage.trim()}
+                                    className="px-4 bg-sky-600 hover:bg-sky-700 text-white"
+                                >
+                                    <Send className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-1.5 text-center">
+                                This AI provides general legal information and should not replace tailored professional legal advice.
+                            </p>
+                        </div>
                     </Card>
                 </div>
             </div>

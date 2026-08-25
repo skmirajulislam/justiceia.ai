@@ -31,19 +31,18 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'VKYC verification required to access AI Chatbot' }, { status: 403 });
         }
 
-        const { message, history, customApiKey } = await req.json();
+        const { message } = await req.json();
 
         if (!message) {
             return NextResponse.json({ error: 'Message is required' }, { status: 400 });
         }
 
-        const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
             return NextResponse.json({
-                error: 'Gemini API key not configured. Please enter your API key to continue.',
-                requiresApiKey: true
-            }, { status: 400 });
+                error: 'Server configuration error: Gemini API key is not configured.',
+            }, { status: 500 });
         }
 
         const legalContext = `You are a knowledgeable legal AI assistant named Justiceia AI specializing in Indian law, constitutional law, procedural codes (IPC/BNS, CrPC/BNSS, CPC), corporate compliance, and general legal principles.
