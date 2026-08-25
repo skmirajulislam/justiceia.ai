@@ -7,11 +7,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { User, Settings, Trash2, CheckCircle, Clock, FileText, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { 
+    User, Settings, Trash2, CheckCircle, Clock, FileText, 
+    AlertTriangle, ShieldCheck, Briefcase, Award, IndianRupee, 
+    GraduationCap, Globe, BookOpen, MapPin 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import Navbar from '@/components/layout/Navbar';
@@ -23,6 +28,14 @@ const formSchema = z.object({
     phone: z.string().min(10, "Phone number must be at least 10 characters.").optional().or(z.literal('')),
     address: z.string().optional(),
     role: z.string().optional(),
+    experience: z.coerce.number().min(0, "Experience cannot be negative").max(70).optional(),
+    hourlyRate: z.coerce.number().min(0, "Hourly rate cannot be negative").optional(),
+    specialization: z.string().optional(),
+    location: z.string().optional(),
+    education: z.string().optional(),
+    languages: z.string().optional(),
+    certifications: z.string().optional(),
+    bio: z.string().optional(),
 });
 
 interface Report {
@@ -30,6 +43,19 @@ interface Report {
     title: string;
     category: string;
     created_at: Date | null;
+}
+
+interface AdvocateProfileData {
+    id?: string;
+    specialization?: string[];
+    experience?: number;
+    hourly_rate?: number;
+    bio?: string;
+    education?: string;
+    certifications?: string[];
+    languages?: string[];
+    location?: string;
+    is_verified?: boolean;
 }
 
 interface Profile {
@@ -45,6 +71,7 @@ interface Profile {
     created_at: Date | null;
     updated_at: Date | null;
     reports: Report[];
+    advocateProfile?: AdvocateProfileData | null;
 }
 
 const Profile = () => {
@@ -65,6 +92,14 @@ const Profile = () => {
             phone: '',
             address: '',
             role: 'REGULAR_USER',
+            experience: 0,
+            hourlyRate: 0,
+            specialization: '',
+            location: '',
+            education: '',
+            languages: '',
+            certifications: '',
+            bio: '',
         },
     });
 
@@ -102,6 +137,20 @@ const Profile = () => {
                         phone: profileData.phone || '',
                         address: profileData.address || '',
                         role: normalizedRole,
+                        experience: profileData.advocateProfile?.experience ?? 0,
+                        hourlyRate: profileData.advocateProfile?.hourly_rate ?? 0,
+                        specialization: Array.isArray(profileData.advocateProfile?.specialization)
+                            ? profileData.advocateProfile.specialization.join(', ')
+                            : profileData.advocateProfile?.specialization || '',
+                        location: profileData.advocateProfile?.location || profileData.address || '',
+                        education: profileData.advocateProfile?.education || '',
+                        languages: Array.isArray(profileData.advocateProfile?.languages)
+                            ? profileData.advocateProfile.languages.join(', ')
+                            : profileData.advocateProfile?.languages || '',
+                        certifications: Array.isArray(profileData.advocateProfile?.certifications)
+                            ? profileData.advocateProfile.certifications.join(', ')
+                            : profileData.advocateProfile?.certifications || '',
+                        bio: profileData.advocateProfile?.bio || '',
                     });
                 } else if (response.status === 404) {
                     router.push('/create-profile');
@@ -278,6 +327,31 @@ const Profile = () => {
                                     <span>{profile?.reports?.length || 0}</span>
                                 </div>
                             </div>
+
+                            {isProfessionalUser && (
+                                <div className="pt-2 space-y-2 text-xs text-slate-600 border-t">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-medium">Experience:</span>
+                                        <span className="font-semibold text-slate-800">{profile?.advocateProfile?.experience ?? 0} Years</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-medium">Consultation Rate:</span>
+                                        <span className="font-semibold text-slate-800">₹{profile?.advocateProfile?.hourly_rate ?? 0}/hr</span>
+                                    </div>
+                                    {profile?.advocateProfile?.specialization && profile.advocateProfile.specialization.length > 0 && (
+                                        <div className="pt-1">
+                                            <span className="font-medium block mb-1">Specializations:</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {profile.advocateProfile.specialization.map((spec, i) => (
+                                                    <span key={i} className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded text-[11px] font-medium border border-sky-200">
+                                                        {spec}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -286,11 +360,11 @@ const Profile = () => {
                         <Card>
                             <CardHeader>
                                 <div className="flex items-center space-x-2">
-                                    <Settings className="w-5 h-5" />
-                                    <span>Edit Profile</span>
+                                    <Settings className="w-5 h-5 text-slate-700" />
+                                    <span className="font-semibold text-lg">Edit Profile</span>
                                 </div>
                                 <CardDescription>
-                                    Update your personal information and account settings
+                                    Update your personal information, role, and professional legal credentials
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -391,6 +465,175 @@ const Profile = () => {
                                                 </FormItem>
                                             )}
                                         />
+
+                                        {/* Professional Advocate Details Section */}
+                                        {['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(form.watch('role') || profile?.role || '') && (
+                                            <div className="pt-4 border-t border-slate-200 space-y-4">
+                                                <div className="flex items-center space-x-2 text-slate-800 pb-1">
+                                                    <Briefcase className="w-5 h-5 text-sky-600" />
+                                                    <h3 className="font-semibold text-base">Legal Practice & Professional Details</h3>
+                                                </div>
+                                                <p className="text-xs text-slate-500">
+                                                    These details are displayed on your advocate profile and the official legal verification affidavit.
+                                                </p>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="experience"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="flex items-center gap-1.5">
+                                                                    <Award className="w-4 h-4 text-slate-500" />
+                                                                    Experience (Years)
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="70"
+                                                                        placeholder="e.g. 5"
+                                                                        {...field}
+                                                                        value={field.value ?? 0}
+                                                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="hourlyRate"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="flex items-center gap-1.5">
+                                                                    <IndianRupee className="w-4 h-4 text-slate-500" />
+                                                                    Hourly Consultation Rate (₹)
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        placeholder="e.g. 1500"
+                                                                        {...field}
+                                                                        value={field.value ?? 0}
+                                                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+
+                                                <FormField
+                                                    control={form.control}
+                                                    name="specialization"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="flex items-center gap-1.5">
+                                                                <BookOpen className="w-4 h-4 text-slate-500" />
+                                                                Areas of Specialization (comma-separated)
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="e.g. Criminal Law, Corporate Law, Civil Litigation, Family Law" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="location"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="flex items-center gap-1.5">
+                                                                    <MapPin className="w-4 h-4 text-slate-500" />
+                                                                    Office / Chamber Location
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="e.g. High Court, Kolkata, West Bengal" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="languages"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="flex items-center gap-1.5">
+                                                                    <Globe className="w-4 h-4 text-slate-500" />
+                                                                    Practicing Languages (comma-separated)
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="e.g. English, Bengali, Hindi" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+
+                                                <FormField
+                                                    control={form.control}
+                                                    name="education"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="flex items-center gap-1.5">
+                                                                <GraduationCap className="w-4 h-4 text-slate-500" />
+                                                                Education & Degrees
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="e.g. LL.B (Hons), LL.M (Corporate Law)" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <FormField
+                                                    control={form.control}
+                                                    name="certifications"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="flex items-center gap-1.5">
+                                                                <Award className="w-4 h-4 text-slate-500" />
+                                                                Bar Council Reg / Certifications (comma-separated)
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="e.g. Bar Council of West Bengal, Reg #WB/1234/2020" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                <FormField
+                                                    control={form.control}
+                                                    name="bio"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Professional Bio / Summary</FormLabel>
+                                                            <FormControl>
+                                                                <Textarea
+                                                                    rows={3}
+                                                                    placeholder="Describe your legal experience, expertise, and courtroom practice..."
+                                                                    {...field}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        )}
 
                                         <div className="flex justify-between items-center pt-2">
                                             <AlertDialog>

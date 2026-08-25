@@ -51,6 +51,7 @@ export async function GET(
                 updated_at: true,
                 advocateProfile: true,
                 vkycDocuments: true,
+                vkycCertificate: true,
                 reports: {
                     select: {
                         id: true,
@@ -153,9 +154,57 @@ export async function PUT(
             }
         }
 
-        // Whenever an advocate/professional updates their profile, reset their VKYC
-        // and delete old VKYC images from UploadThing and DB so they must re-verify
         const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(targetRole);
+
+        // Update advocate profile fields if user is a legal professional
+        if (isProfessional) {
+            const advocateUpdate: Record<string, any> = {};
+            if (data.specialization !== undefined) {
+                advocateUpdate.specialization = Array.isArray(data.specialization)
+                    ? data.specialization
+                    : typeof data.specialization === 'string'
+                        ? data.specialization.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        : [];
+            }
+            if (data.experience !== undefined) advocateUpdate.experience = Number(data.experience) || 0;
+            if (data.hourly_rate !== undefined) advocateUpdate.hourly_rate = Number(data.hourly_rate) || 0;
+            if (data.hourlyRate !== undefined) advocateUpdate.hourly_rate = Number(data.hourlyRate) || 0;
+            if (data.location !== undefined) advocateUpdate.location = data.location || '';
+            if (data.education !== undefined) advocateUpdate.education = data.education || '';
+            if (data.bio !== undefined) advocateUpdate.bio = data.bio || '';
+            if (data.languages !== undefined) {
+                advocateUpdate.languages = Array.isArray(data.languages)
+                    ? data.languages
+                    : typeof data.languages === 'string'
+                        ? data.languages.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        : [];
+            }
+            if (data.certifications !== undefined) {
+                advocateUpdate.certifications = Array.isArray(data.certifications)
+                    ? data.certifications
+                    : typeof data.certifications === 'string'
+                        ? data.certifications.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        : [];
+            }
+
+            await prisma.advocateProfile.upsert({
+                where: { user_id: id },
+                update: advocateUpdate,
+                create: {
+                    user_id: id,
+                    specialization: advocateUpdate.specialization || [],
+                    experience: advocateUpdate.experience || 0,
+                    hourly_rate: advocateUpdate.hourly_rate || 0,
+                    location: advocateUpdate.location || '',
+                    education: advocateUpdate.education || '',
+                    bio: advocateUpdate.bio || '',
+                    languages: advocateUpdate.languages || [],
+                    certifications: advocateUpdate.certifications || [],
+                    is_verified: false,
+                    is_available: true
+                }
+            });
+        }
 
         if (isProfessional) {
             updateData.vkyc_completed = false;
@@ -175,6 +224,11 @@ export async function PUT(
                     where: { user_id: id }
                 });
             }
+
+            // Remove/invalidate old certificate from DB
+            await prisma.vkycCertificate.deleteMany({
+                where: { user_id: id }
+            });
         }
 
         const updatedProfile = await prisma.profile.update({
@@ -194,7 +248,8 @@ export async function PUT(
                 can_upload_reports: true,
                 created_at: true,
                 updated_at: true,
-                advocateProfile: true
+                advocateProfile: true,
+                vkycCertificate: true
             }
         });
 

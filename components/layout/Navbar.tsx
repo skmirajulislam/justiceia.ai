@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, Menu, X, Scale, User, FileText, Video, Brain, LogIn, LogOut, Settings, UserCircle, ShieldAlert } from 'lucide-react';
+import { Search, Menu, X, Scale, User, FileText, Video, Brain, LogIn, LogOut, Settings, UserCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ const Navbar = () => {
       console.error('Logout error:', error);
       toast({
         title: "Error",
-        description: "Failed to sign out",
+        description: "Failed to logout.",
         variant: "destructive",
       });
     }
@@ -128,11 +128,18 @@ const Navbar = () => {
                   {isProfessional && (
                     <DropdownMenuItem asChild>
                       <Link href="/vkyc" className="flex items-center cursor-pointer">
-                        <Settings className="w-4 h-4 mr-2" />
+                        <ShieldCheck className="w-4 h-4 mr-2 text-sky-600" />
                         Video KYC Status
                       </Link>
                     </DropdownMenuItem>
                   )}
+
+                  <DropdownMenuItem asChild>
+                    <Link href="/vkyc/verify" className="flex items-center cursor-pointer">
+                      <Search className="w-4 h-4 mr-2 text-emerald-600" />
+                      Verify Certificate ID
+                    </Link>
+                  </DropdownMenuItem>
 
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />

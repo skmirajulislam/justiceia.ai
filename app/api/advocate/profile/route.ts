@@ -186,8 +186,8 @@ export async function GET(request: NextRequest) {
 
             return NextResponse.json({ profile: advocateProfile });
         } else if (['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(user.role)) {
-            // Get current advocate's profile
-            const advocateProfile = await prisma.advocateProfile.findUnique({
+            // Get current advocate's profile, auto-creating if missing
+            let advocateProfile = await prisma.advocateProfile.findUnique({
                 where: {
                     user_id: user.id,
                 },
@@ -198,10 +198,40 @@ export async function GET(request: NextRequest) {
                             last_name: true,
                             email: true,
                             phone: true,
+                            address: true,
                         },
                     },
                 },
             });
+
+            if (!advocateProfile) {
+                advocateProfile = await prisma.advocateProfile.create({
+                    data: {
+                        user_id: user.id,
+                        specialization: [],
+                        experience: 0,
+                        hourly_rate: 0,
+                        bio: '',
+                        education: '',
+                        certifications: [],
+                        languages: [],
+                        location: user.address || '',
+                        is_verified: user.vkyc_completed || false,
+                        is_available: true
+                    },
+                    include: {
+                        profile: {
+                            select: {
+                                first_name: true,
+                                last_name: true,
+                                email: true,
+                                phone: true,
+                                address: true,
+                            },
+                        },
+                    },
+                });
+            }
 
             return NextResponse.json({ profile: advocateProfile });
         } else {

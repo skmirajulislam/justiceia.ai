@@ -40,7 +40,9 @@ export async function GET() {
                         kyc_type: true,
                         created_at: true
                     }
-                }
+                },
+                vkycCertificate: true,
+                advocateProfile: true
             }
         })
 
@@ -58,6 +60,9 @@ export async function GET() {
         const vkycStatus = {
             user_id: profile.id,
             email: profile.email,
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            role: profile.role,
             vkyc_completed: profile.vkyc_completed,
             vkyc_completed_at: profile.vkyc_completed_at,
             profile_updated_at: profile.updated_at,
@@ -65,6 +70,8 @@ export async function GET() {
             missing_fields: missingFields,
             documents_count: profile.vkycDocuments.length,
             documents: profile.vkycDocuments,
+            certificate: profile.vkycCertificate,
+            advocateProfile: profile.advocateProfile,
             requires_vkyc: !profile.vkyc_completed || missingFields.length > 0,
             can_complete_vkyc: missingFields.length === 0,
             profile_complete: missingFields.length === 0,

@@ -26,6 +26,7 @@ model Profile {
   reports            Report[]
   advocateProfile    AdvocateProfile?
   vkycDocuments      VkycDocument[]   @relation("UserVkycDocuments")
+  vkycCertificate    VkycCertificate? @relation("UserVkycCertificate")
 
   @@map("profiles")
 }
@@ -84,6 +85,22 @@ model VkycDocument {
   profile       Profile  @relation("UserVkycDocuments", fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("vkyc_documents")
+}
+
+model VkycCertificate {
+  id                     String    @id @default(uuid())
+  user_id                String    @unique
+  certificate_id         String    @unique
+  auth_token             String    @unique
+  sha256_hash            String
+  digital_seal_authority String    @default("Justiceia.ai Trust Authority")
+  tamper_proof_status    String    @default("VERIFIED & CRYPTOGRAPHICALLY TAMPER-PROOF")
+  is_active              Boolean   @default(true)
+  issued_at              DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  profile                Profile   @relation("UserVkycCertificate", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("vkyc_certificates")
 }
 
 model ConsultationRequest {

@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Camera, CheckCircle, Scale, AlertCircle, Loader2, X, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle, Scale, AlertCircle, Loader2, X, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { getProfileAction } from '@/lib/database-actions';
 import Navbar from '@/components/layout/Navbar';
+import { VKYCStatusDashboard } from '@/components/function/VKYCStatusDashboard';
 
 const basicFormSchema = z.object({
     firstName: z.string().min(2, "First name must be at least 2 characters."),
@@ -39,10 +39,40 @@ interface Profile {
     first_name?: string;
     last_name?: string;
     phone?: string;
+    email?: string;
     address?: string;
     kyc_type?: string;
     role?: string;
     vkyc_completed?: boolean;
+    vkyc_completed_at?: string | Date | null;
+    advocateProfile?: {
+        id?: string;
+        specialization?: string[];
+        experience?: number;
+        bio?: string;
+        education?: string;
+        certifications?: string[];
+        hourly_rate?: number;
+        location?: string;
+        rating?: number;
+        total_consultations?: number;
+    } | null;
+    vkycDocuments?: Array<{
+        id: string;
+        document_type: string;
+        document_url: string;
+        created_at?: string | Date;
+    }>;
+    vkycCertificate?: {
+        id: string;
+        certificate_id: string;
+        auth_token: string;
+        sha256_hash: string;
+        digital_seal_authority?: string;
+        tamper_proof_status?: string;
+        is_active?: boolean;
+        issued_at?: string | Date;
+    } | null;
 }
 
 interface CapturedPhotos {
@@ -265,9 +295,10 @@ const CameraModal = ({
 const VKYC = () => {
     const router = useRouter();
     const { toast } = useToast();
-    const { session, loading: authLoading } = useAuth();
+    const { session, loading: authLoading, refreshSession } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isReverifying, setIsReverifying] = useState(false);
     const [showCamera, setShowCamera] = useState<string | false>(false);
     const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhotos>({});
 
@@ -295,38 +326,13 @@ const VKYC = () => {
         },
     });
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            if (authLoading) return;
-
-            if (!session) {
-                router.push('/auth');
-                return;
-            }
-
-            try {
-                const profileData = await getProfileAction(session.user.id);
-
-                if (!profileData) {
-                    router.push('/auth');
-                    return;
-                }
-
-                setProfile({
-                    ...profileData,
-                    first_name: profileData.first_name ?? undefined,
-                    last_name: profileData.last_name ?? undefined,
-                    phone: profileData.phone ?? undefined,
-                    address: profileData.address ?? undefined,
-                    role: profileData.role ?? undefined,
-                    vkyc_completed: profileData.vkyc_completed ?? undefined,
-                });
-
-                // If VKYC is already completed, redirect to profile
-                if (profileData.vkyc_completed) {
-                    router.push('/');
-                    return;
-                }
+    const fetchFullProfile = async () => {
+        if (!session?.user?.id) return;
+        try {
+            const response = await fetch(`/api/profile/${session.user.id}`);
+            if (response.ok) {
+                const profileData = await response.json();
+                setProfile(profileData);
 
                 // Pre-populate form with existing data
                 const baseData = {
@@ -335,7 +341,7 @@ const VKYC = () => {
                     phone: profileData.phone || ''
                 };
 
-                if (isFullKYC) {
+                if (profileData.role && ['LAWYER', 'BARRISTER', 'GOVERNMENT_OFFICIAL'].includes(profileData.role)) {
                     fullForm.reset({
                         ...baseData,
                         aadhaarNumber: '',
@@ -345,14 +351,26 @@ const VKYC = () => {
                 } else {
                     basicForm.reset(baseData);
                 }
-            } catch (error) {
-                console.error('Auth check error:', error);
-                router.push('/auth');
             }
+        } catch (error) {
+            console.error('Error fetching full profile:', error);
+        }
+    };
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            if (authLoading) return;
+
+            if (!session) {
+                router.push('/auth');
+                return;
+            }
+
+            await fetchFullProfile();
         };
 
         checkAuth();
-    }, [session, authLoading, router, isFullKYC, fullForm, basicForm]);
+    }, [session, authLoading, router]);
 
     const uploadPhotoToUploadThing = async (imageData: string, documentType: string): Promise<string | null> => {
         try {
@@ -517,13 +535,12 @@ const VKYC = () => {
             if (response.ok) {
                 toast({
                     title: "VKYC Completed!",
-                    description: "Your verification is complete. Welcome to the platform!",
+                    description: "Your verification is complete. Your verified legal credentials and affidavit are ready!",
                 });
 
-                // Redirect to platform after successful completion
-                setTimeout(() => {
-                    router.push('/');
-                }, 2000);
+                await refreshSession();
+                await fetchFullProfile();
+                setIsReverifying(false);
             } else {
                 throw new Error(data.error || 'VKYC completion failed');
             }
@@ -542,24 +559,55 @@ const VKYC = () => {
 
     if (authLoading || !session || !profile) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-sky-500"></div>
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+                <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    // If VKYC is completed and user is not currently in re-verification mode, show the full Verified Status Dashboard
+    if (profile.vkyc_completed && !isReverifying) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16">
+                <Navbar />
+                <div className="pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                    <VKYCStatusDashboard
+                        profile={profile}
+                        onReverify={() => setIsReverifying(true)}
+                    />
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-950 dark:to-slate-900 pb-12">
             <Navbar />
             <div className="pt-24 px-4 py-8">
                 <div className="max-w-4xl mx-auto">
+                    {isReverifying && (
+                        <div className="mb-6 flex items-center justify-between bg-sky-50 dark:bg-sky-950/60 p-4 rounded-xl border border-sky-200 dark:border-sky-800">
+                            <span className="text-sm font-medium text-sky-900 dark:text-sky-200">
+                                Updating Video KYC documents & biometrics.
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsReverifying(false)}
+                                className="flex items-center gap-1.5 text-xs bg-white dark:bg-slate-900"
+                            >
+                                <ArrowLeft className="w-3.5 h-3.5" /> Back to Verified Certificate
+                            </Button>
+                        </div>
+                    )}
                     <Card>
                         <CardHeader className="text-center">
                             <div className="flex items-center justify-center space-x-2 mb-4">
                                 <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-2 rounded-lg">
                                     <Scale className="w-6 h-6 text-white" />
                                 </div>
-                                <span className="text-xl font-bold text-slate-900">JusticeIA.ai</span>
+                                <span className="text-xl font-bold text-slate-900 dark:text-slate-100">JusticeIA.ai</span>
                             </div>
                             <CardTitle className="text-2xl">
                                 {`${isFullKYC ? 'Full' : 'Basic'} KYC Verification`}
@@ -571,9 +619,9 @@ const VKYC = () => {
                                 }
                             </CardDescription>
                             {isFullKYC && (
-                                <div className="flex items-center justify-center space-x-2 mt-2 p-2 bg-blue-50 rounded-lg">
-                                    <AlertCircle className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm text-blue-600">
+                                <div className="flex items-center justify-center space-x-2 mt-2 p-2 bg-blue-50 dark:bg-blue-950/50 rounded-lg">
+                                    <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                    <span className="text-sm text-blue-600 dark:text-blue-400">
                                         Full KYC required for {profile.role?.replace('_', ' ')} role
                                     </span>
                                 </div>

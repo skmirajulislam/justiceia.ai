@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import io, { Socket } from 'socket.io-client';
@@ -1205,158 +1206,20 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
     setAdvocateProfile,
     toast
 }) => {
+    const router = useRouter();
+
     if (!profile) {
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Welcome to Advocate Dashboard</CardTitle>
-                    <CardDescription>Please create your profile to start receiving consultation requests.</CardDescription>
+                    <CardTitle>Advocate Consultation Dashboard</CardTitle>
+                    <CardDescription>View your consultation requests, earnings, and client sessions.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button onClick={() => setIsProfileDialogOpen(true)}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Profile
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Create Advocate Profile</DialogTitle>
-                            </DialogHeader>
-                            <Form {...advocateForm}>
-                                <form
-                                    onSubmit={(e) => {
-                                        e.preventDefault();
-                                        advocateForm.handleSubmit(onCreateProfile)(e);
-                                    }}
-                                    className="space-y-4"
-                                >
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <FormField
-                                            control={advocateForm.control}
-                                            name="specialization"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Specialization</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select specialization" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="Corporate Law">Corporate Law</SelectItem>
-                                                            <SelectItem value="Criminal Law">Criminal Law</SelectItem>
-                                                            <SelectItem value="Family Law">Family Law</SelectItem>
-                                                            <SelectItem value="Constitutional Law">Constitutional Law</SelectItem>
-                                                            <SelectItem value="Civil Law">Civil Law</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={advocateForm.control}
-                                            name="experience"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Experience (years)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            {...field}
-                                                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                    <FormField
-                                        control={advocateForm.control}
-                                        name="bio"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bio</FormLabel>
-                                                <FormControl>
-                                                    <Textarea {...field} placeholder="Tell us about yourself..." />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={advocateForm.control}
-                                        name="education"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Education</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Your educational background" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={advocateForm.control}
-                                        name="certifications"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Certifications (comma-separated)</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Certification 1, Certification 2" />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <FormField
-                                            control={advocateForm.control}
-                                            name="hourly_rate"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Hourly Rate (₹)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            {...field}
-                                                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={advocateForm.control}
-                                            name="languages"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Languages (comma-separated)</FormLabel>
-                                                    <FormControl>
-                                                        <Input {...field} placeholder="Hindi, English" />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                    <Button
-                                        type="submit"
-                                        className="w-full"
-                                        disabled={!advocateForm.formState.isValid || advocateForm.formState.isSubmitting}
-                                    >
-                                        {advocateForm.formState.isSubmitting ? 'Creating...' : 'Create Profile'}
-                                    </Button>
-                                </form>
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button onClick={() => router.push('/profile')} variant="outline" className="flex items-center gap-2">
+                        <Edit className="w-4 h-4" />
+                        Manage Professional Details in Profile Settings
+                    </Button>
                 </CardContent>
             </Card>
         );
@@ -1585,241 +1448,15 @@ const AdvocateDashboard: React.FC<AdvocateDashboardProps> = ({
                                 </div>
                             </div>
 
-                            <div className="mt-6 flex gap-4">
+                            <div className="mt-6">
                                 <Button
-                                    onClick={() => {
-                                        advocateForm.reset({
-                                            specialization: Array.isArray(profile.specialization) ?
-                                                profile.specialization[0] : profile.specialization || '',
-                                            experience: profile.experience || 0,
-                                            bio: profile.bio || '',
-                                            education: profile.education || '',
-                                            certifications: Array.isArray(profile.certifications) ?
-                                                profile.certifications.join(', ') : profile.certifications || '',
-                                            hourly_rate: profile.hourly_rate || profile.rate || 0,
-                                            languages: Array.isArray(profile.languages) ?
-                                                profile.languages.join(', ') : profile.languages || ''
-                                        });
-                                        setIsUpdateDialogOpen(true);
-                                    }}
-                                    className="flex items-center gap-2"
+                                    onClick={() => router.push('/profile')}
+                                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
                                 >
                                     <Edit className="w-4 h-4" />
-                                    Update Profile
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => setIsDeleteDialogOpen(true)}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete Profile
+                                    Manage Profile, Rates & Specializations in Account Settings
                                 </Button>
                             </div>
-
-                            {/* Update Profile Dialog */}
-                            <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-                                <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Update Profile</DialogTitle>
-                                    </DialogHeader>
-                                    <Form {...advocateForm}>
-                                        <form
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                advocateForm.handleSubmit((data) => {
-                                                    onCreateProfile(data);
-                                                    setIsUpdateDialogOpen(false);
-                                                })(e);
-                                            }}
-                                            className="space-y-4"
-                                        >
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <FormField
-                                                    control={advocateForm.control}
-                                                    name="specialization"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Specialization</FormLabel>
-                                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                                <FormControl>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select specialization" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="Corporate Law">Corporate Law</SelectItem>
-                                                                    <SelectItem value="Criminal Law">Criminal Law</SelectItem>
-                                                                    <SelectItem value="Family Law">Family Law</SelectItem>
-                                                                    <SelectItem value="Constitutional Law">Constitutional Law</SelectItem>
-                                                                    <SelectItem value="Civil Law">Civil Law</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={advocateForm.control}
-                                                    name="experience"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Experience (years)</FormLabel>
-                                                            <FormControl>
-                                                                <Input
-                                                                    type="number"
-                                                                    {...field}
-                                                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                                                />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <FormField
-                                                control={advocateForm.control}
-                                                name="hourly_rate"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Hourly Rate (₹)</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                type="number"
-                                                                {...field}
-                                                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={advocateForm.control}
-                                                name="bio"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Bio</FormLabel>
-                                                        <FormControl>
-                                                            <Textarea {...field} placeholder="Tell us about yourself..." />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={advocateForm.control}
-                                                name="education"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Education</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} placeholder="Your educational background" />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={advocateForm.control}
-                                                name="certifications"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Certifications (comma-separated)</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} placeholder="Certification 1, Certification 2" />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={advocateForm.control}
-                                                name="languages"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Languages (comma-separated)</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} placeholder="Hindi, English" />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <div className="flex justify-end space-x-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() => setIsUpdateDialogOpen(false)}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                                <Button
-                                                    type="submit"
-                                                    disabled={advocateForm.formState.isSubmitting}
-                                                >
-                                                    {advocateForm.formState.isSubmitting ? 'Updating...' : 'Update Profile'}
-                                                </Button>
-                                            </div>
-                                        </form>
-                                    </Form>
-                                </DialogContent>
-                            </Dialog>
-
-                            {/* Delete Profile Dialog */}
-                            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Delete Profile</DialogTitle>
-                                        <DialogDescription>
-                                            Are you sure you want to delete your advocate profile? This action cannot be undone.
-                                            All your consultation history and ratings will be permanently lost.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="flex justify-end space-x-2">
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setIsDeleteDialogOpen(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            onClick={async () => {
-                                                try {
-                                                    const response = await fetch('/api/advocate/profile', {
-                                                        method: 'DELETE',
-                                                        headers: {
-                                                            'Content-Type': 'application/json',
-                                                        },
-                                                        credentials: 'include',
-                                                    });
-
-                                                    if (response.ok) {
-                                                        setAdvocateProfile(null);
-                                                        setIsDeleteDialogOpen(false);
-                                                        toast({
-                                                            title: "Profile Deleted",
-                                                            description: "Your advocate profile has been deleted successfully.",
-                                                        });
-                                                    } else {
-                                                        throw new Error('Failed to delete profile');
-                                                    }
-                                                } catch (error) {
-                                                    console.error('Delete profile error:', error);
-                                                    toast({
-                                                        title: "Error",
-                                                        description: "Failed to delete profile. Please try again.",
-                                                        variant: "destructive",
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            Delete Profile
-                                        </Button>
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
                         </div>
                     )}
                 </div>

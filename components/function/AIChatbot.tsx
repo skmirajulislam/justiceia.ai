@@ -88,7 +88,7 @@ const AIChatbot = () => {
             }
 
             try {
-                if (!session.user?.vkyc_completed) {
+                if (session.user?.isProfessional && !session.user?.vkyc_completed) {
                     router.push('/vkyc');
                     return;
                 }

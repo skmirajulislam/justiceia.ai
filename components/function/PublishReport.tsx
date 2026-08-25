@@ -190,35 +190,39 @@ const PublishReport = () => {
             const formData = new FormData();
             formData.append('file', file);
 
-            // Simulate upload progress (since we can't track real progress with fetch)
-            const progressInterval = setInterval(() => {
-                setUploadProgress(prev => {
-                    if (prev >= 90) {
-                        clearInterval(progressInterval);
-                        return 90;
-                    }
-                    return prev + 10;
+            let progressInterval: NodeJS.Timeout | null = null;
+            try {
+                progressInterval = setInterval(() => {
+                    setUploadProgress(prev => {
+                        if (prev >= 90) {
+                            if (progressInterval) clearInterval(progressInterval);
+                            return 90;
+                        }
+                        return prev + 10;
+                    });
+                }, 200);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
                 });
-            }, 200);
 
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
+                if (progressInterval) clearInterval(progressInterval);
+                setUploadProgress(100);
 
-            clearInterval(progressInterval);
-            setUploadProgress(100);
+                const data = await response.json();
 
-            const data = await response.json();
-
-            if (response.ok) {
-                return {
-                    url: data.url,
-                    key: data.key || data.public_id || '',
-                    publicId: data.public_id || data.key || ''
-                };
-            } else {
-                throw new Error(data.error || 'Upload failed');
+                if (response.ok) {
+                    return {
+                        url: data.url,
+                        key: data.key || data.public_id || '',
+                        publicId: data.public_id || data.key || ''
+                    };
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } finally {
+                if (progressInterval) clearInterval(progressInterval);
             }
         } catch (error) {
             console.error('Upload error:', error);
