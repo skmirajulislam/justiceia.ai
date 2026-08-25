@@ -19,6 +19,8 @@ model Profile {
   phone              String?
   role               UserRole         @default(REGULAR_USER)
   kyc_type           KycType          @default(REGULAR)
+  avatar_url         String?
+  avatar_key         String?
   updated_at         DateTime         @default(now()) @updatedAt
   vkyc_completed     Boolean          @default(false)
   vkyc_completed_at  DateTime?
@@ -43,6 +45,7 @@ model AdvocateProfile {
   location            String?
   languages           String[]
   image_url           String?
+  image_key           String?
   is_verified         Boolean  @default(false)
   is_available        Boolean  @default(true)
   total_consultations Int      @default(0)

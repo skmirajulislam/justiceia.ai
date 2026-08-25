@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, BookOpen, Filter, Download, Eye } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,7 @@ interface LegalDocument {
         name: string;
         role: string;
         email: string;
+        avatar_url?: string | null;
     };
 }
 
@@ -214,6 +215,9 @@ const LegalLibrary = () => {
                                         {/* Author Information */}
                                         <div className="flex items-center space-x-3 mb-4 p-3 bg-slate-50 dark:bg-slate-800/70 rounded-lg">
                                             <Avatar className="w-8 h-8">
+                                                {doc.author.avatar_url && (
+                                                    <AvatarImage src={doc.author.avatar_url} alt={doc.author.name} />
+                                                )}
                                                 <AvatarFallback className="text-xs bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
                                                     {getAuthorInitials(doc.author.name)}
                                                 </AvatarFallback>

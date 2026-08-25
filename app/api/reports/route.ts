@@ -96,6 +96,12 @@ export async function GET(request: NextRequest) {
                             last_name: true,
                             role: true,
                             email: true,
+                            avatar_url: true,
+                            advocateProfile: {
+                                select: {
+                                    image_url: true,
+                                }
+                            }
                         },
                     },
                 },
@@ -112,6 +118,7 @@ export async function GET(request: NextRequest) {
                         name: `${report.profile.first_name || ''} ${report.profile.last_name || ''}`.trim() || 'Anonymous',
                         role: report.profile.role,
                         email: report.profile.email,
+                        avatar_url: report.profile.avatar_url || report.profile.advocateProfile?.image_url || null,
                     },
                 })),
             });

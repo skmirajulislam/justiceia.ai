@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,10 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
     User, Settings, Trash2, CheckCircle, Clock, FileText, 
     AlertTriangle, ShieldCheck, Briefcase, Award, IndianRupee, 
-    GraduationCap, Globe, BookOpen, MapPin 
+    GraduationCap, Globe, BookOpen, MapPin, Camera, Loader2, KeyRound, Lock, ShieldAlert
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,7 +56,16 @@ interface AdvocateProfileData {
     certifications?: string[];
     languages?: string[];
     location?: string;
+    image_url?: string | null;
     is_verified?: boolean;
+}
+
+interface VkycCertData {
+    certificate_id: string;
+    auth_token: string;
+    sha256_hash: string;
+    tamper_proof_status?: string;
+    digital_seal_authority?: string;
 }
 
 interface Profile {
@@ -66,22 +76,34 @@ interface Profile {
     phone: string | null;
     address: string | null;
     role: string | null;
+    avatar_url?: string | null;
+    avatar_key?: string | null;
     vkyc_completed: boolean | null;
     vkyc_completed_at: Date | null;
     created_at: Date | null;
     updated_at: Date | null;
     reports: Report[];
     advocateProfile?: AdvocateProfileData | null;
+    vkycCertificate?: VkycCertData | null;
 }
 
 const Profile = () => {
     const router = useRouter();
     const { toast } = useToast();
-    const { session, loading } = useAuth();
+    const { session, loading, refreshSession } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [showVkycRequiredModal, setShowVkycRequiredModal] = useState(false);
+    
+    // Delete Profile Modal state
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [deleteCertId, setDeleteCertId] = useState('');
+    const [deleteAuthToken, setDeleteAuthToken] = useState('');
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -168,6 +190,82 @@ const Profile = () => {
         fetchProfile();
     }, [session, loading, router, form, toast]);
 
+    const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast({
+                title: "Invalid file",
+                description: "Please select an image file (PNG, JPG, JPEG, WEBP).",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (file.size > 8 * 1024 * 1024) {
+            toast({
+                title: "File too large",
+                description: "Profile photo must be less than 8MB.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setIsUploadingAvatar(true);
+        try {
+            // Convert file to Base64 to ensure 100% reliable transport across all network/browser environments
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = (err) => reject(err);
+                reader.readAsDataURL(file);
+            });
+
+            const base64Image = await base64Promise;
+
+            const response = await fetch('/api/profile/upload-avatar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image: base64Image,
+                    fileName: file.name,
+                    fileType: file.type
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to upload photo');
+            }
+
+            setProfile(prev => prev ? {
+                ...prev,
+                avatar_url: data.avatar_url,
+                avatar_key: data.avatar_key
+            } : null);
+
+            await refreshSession();
+
+            toast({
+                title: "Profile Photo Updated",
+                description: "New image uploaded and previous photo cleared from cloud storage.",
+            });
+        } catch (err: any) {
+            console.error('Avatar upload error:', err);
+            toast({
+                title: "Upload Failed",
+                description: err.message || "Failed to upload new profile photo.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsUploadingAvatar(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         if (!session) return;
 
@@ -218,29 +316,50 @@ const Profile = () => {
     const handleDeleteAccount = async () => {
         if (!session) return;
 
+        const hasCert = Boolean(profile?.vkycCertificate);
+
+        if (hasCert) {
+            if (!deleteCertId.trim() || !deleteAuthToken.trim()) {
+                setDeleteError("Both Certificate ID and Auth Token are required for verification.");
+                return;
+            }
+        }
+
         setIsDeleting(true);
+        setDeleteError(null);
 
         try {
             const response = await fetch(`/api/profile/${session.user.id}`, {
                 method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    certificateId: deleteCertId.trim(),
+                    authToken: deleteAuthToken.trim()
+                })
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error('Failed to delete account');
+                throw new Error(data.error || 'Failed to delete account');
             }
 
             toast({
-                title: "Account Deleted",
-                description: "Your account has been permanently deleted.",
+                title: "Account Permanently Deleted",
+                description: "Your profile, credentials, and records have been deleted.",
             });
 
+            setIsDeleteDialogOpen(false);
             window.location.href = '/';
 
-        } catch (error: unknown) {
+        } catch (error: any) {
             console.error('Account deletion error:', error);
+            setDeleteError(error.message || "Failed to delete account. Please verify credentials.");
             toast({
-                title: "Error",
-                description: "Failed to delete account. Please contact support.",
+                title: "Deletion Failed",
+                description: error.message || "Security authorization failed.",
                 variant: "destructive",
             });
         } finally {
@@ -272,8 +391,40 @@ const Profile = () => {
                     {/* User Info Card */}
                     <Card>
                         <CardHeader className="text-center">
-                            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <User className="w-10 h-10 text-white" />
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleAvatarFileSelect}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                            <div className="relative w-24 h-24 mx-auto mb-4 group">
+                                <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-800 dark:bg-slate-700 flex items-center justify-center ring-4 ring-white dark:ring-slate-800 shadow-md">
+                                    {isUploadingAvatar ? (
+                                        <div className="flex flex-col items-center justify-center space-y-1">
+                                            <Loader2 className="w-7 h-7 text-sky-400 animate-spin" />
+                                            <span className="text-[10px] text-sky-200">Uploading...</span>
+                                        </div>
+                                    ) : (profile?.avatar_url || profile?.advocateProfile?.image_url) ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={profile.avatar_url || profile.advocateProfile?.image_url || ''}
+                                            alt="Profile Avatar"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className="w-12 h-12 text-white" />
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingAvatar}
+                                    title="Upload / Change Profile Photo"
+                                    className="absolute bottom-0 right-0 p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-full shadow-lg transition-transform duration-200 hover:scale-110 active:scale-95 disabled:opacity-50"
+                                >
+                                    <Camera className="w-4 h-4" />
+                                </button>
                             </div>
                             <CardTitle>
                                 {profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User Profile' : 'Loading...'}
@@ -636,33 +787,20 @@ const Profile = () => {
                                         )}
 
                                         <div className="flex justify-between items-center pt-2">
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button type="button" variant="destructive" className="flex items-center space-x-2">
-                                                        <Trash2 className="w-4 h-4" />
-                                                        <span>Delete Account</span>
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This action cannot be undone. This will permanently delete your account
-                                                            and remove all your data from our servers, including all reports and VKYC records.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            onClick={handleDeleteAccount}
-                                                            disabled={isDeleting}
-                                                            className="bg-red-600 hover:bg-red-700 text-white"
-                                                        >
-                                                            {isDeleting ? "Deleting..." : "Delete Account"}
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() => {
+                                                    setDeleteCertId('');
+                                                    setDeleteAuthToken('');
+                                                    setDeleteError(null);
+                                                    setIsDeleteDialogOpen(true);
+                                                }}
+                                                className="flex items-center space-x-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                <span>Delete Account</span>
+                                            </Button>
 
                                             <Button type="submit" disabled={isLoading} className="bg-slate-900 hover:bg-slate-800 text-white">
                                                 {isLoading ? "Saving..." : "Save Changes"}
@@ -675,6 +813,103 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Secure Delete Account Modal with VKYC Verification */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <div className="flex items-center space-x-2 text-red-600 dark:text-red-400 mb-1">
+                            <ShieldAlert className="w-6 h-6 shrink-0" />
+                            <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
+                                Delete Account & Accreditations
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-sm text-slate-600 dark:text-slate-400">
+                            This action is permanent and irreversible. All personal data, reports, and consultation logs will be erased from our database and cloud storage.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {profile?.vkycCertificate ? (
+                        <div className="space-y-3 py-2">
+                            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg text-xs text-red-800 dark:text-red-300 space-y-1">
+                                <p className="font-semibold flex items-center gap-1.5">
+                                    <KeyRound className="w-4 h-4" />
+                                    Cryptographic Verification Required
+                                </p>
+                                <p>
+                                    As a verified legal practitioner, please provide your VKYC Certificate ID and Auth Token to authorize permanent credential revocation and account deletion.
+                                </p>
+                            </div>
+
+                            {deleteError && (
+                                <div className="p-2.5 bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-200 rounded text-xs font-medium">
+                                    {deleteError}
+                                </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    VKYC Certificate ID
+                                </label>
+                                <Input
+                                    placeholder="e.g. JAI-VKYC-2026-..."
+                                    value={deleteCertId}
+                                    onChange={(e) => setDeleteCertId(e.target.value)}
+                                    className="text-xs font-mono"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    Authorization Token
+                                </label>
+                                <Input
+                                    placeholder="e.g. JAI-AUTH-..."
+                                    value={deleteAuthToken}
+                                    onChange={(e) => setDeleteAuthToken(e.target.value)}
+                                    className="text-xs font-mono"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="py-2 text-xs text-slate-600 dark:text-slate-400">
+                            {deleteError && (
+                                <div className="p-2.5 bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-200 rounded text-xs font-medium mb-3">
+                                    {deleteError}
+                                </div>
+                            )}
+                            Are you sure you want to delete your profile? This cannot be undone.
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleDeleteAccount}
+                            disabled={isDeleting || (Boolean(profile?.vkycCertificate) && (!deleteCertId.trim() || !deleteAuthToken.trim()))}
+                            className="bg-red-600 hover:bg-red-700 text-white font-medium"
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Verifying & Deleting...
+                                </>
+                            ) : (
+                                "Permanently Delete"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Mandatory Re-VKYC Modal Popup for Advocates */}
             <AlertDialog open={showVkycRequiredModal} onOpenChange={setShowVkycRequiredModal}>

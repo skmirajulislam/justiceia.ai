@@ -134,12 +134,45 @@ function VkycVerificationContent() {
                     </div>
 
                     <CardContent className="p-6 sm:p-8 space-y-6">
+                        {/* Verified Practitioner Header with Photo */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
+                            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden ring-2 ring-emerald-500/40 bg-slate-100 dark:bg-slate-800 shadow-md shrink-0">
+                                {result.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={result.avatar_url}
+                                        alt={result.advocateName}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white font-bold text-2xl">
+                                        {result.advocateName?.charAt(0) || 'L'}
+                                    </div>
+                                )}
+                                <div className="absolute bottom-0 right-0 p-1 bg-emerald-500 rounded-tl-lg text-white shadow">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-xs uppercase font-semibold text-emerald-600 dark:text-emerald-400 tracking-wider">
+                                    Accredited Legal Practitioner
+                                </span>
+                                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                                    {result.advocateName}
+                                </h3>
+                                <p className="text-sm font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                                    <Briefcase className="w-4 h-4" />
+                                    {result.role} • {result.experienceYears > 0 ? `${result.experienceYears} Years in Legal Practice` : 'Registered Legal Practitioner'}
+                                </p>
+                            </div>
+                        </div>
+
                         {/* Practitioner Info Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div>
                                     <span className="text-xs text-slate-500 font-medium">Practitioner Legal Name</span>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">{result.advocateName}</p>
+                                    <p className="text-base font-bold text-slate-900 dark:text-white">{result.advocateName}</p>
                                 </div>
 
                                 <div>

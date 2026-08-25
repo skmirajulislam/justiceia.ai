@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
                 name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email?.split('@')[0] || 'User',
                 role: profile.role,
                 kyc_type: profile.kyc_type,
+                avatar_url: profile.avatar_url || profile.advocateProfile?.image_url || null,
                 can_upload_reports: profile.can_upload_reports,
                 vkyc_completed: profile.vkyc_completed,
                 isProfessional: ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(profile.role),
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest) {
                     specialization: profile.advocateProfile.specialization,
                     hourly_rate: profile.advocateProfile.hourly_rate,
                     is_verified: profile.advocateProfile.is_verified,
-                    is_available: profile.advocateProfile.is_available
+                    is_available: profile.advocateProfile.is_available,
+                    image_url: profile.advocateProfile.image_url || profile.avatar_url || null
                 } : null
             }
         };

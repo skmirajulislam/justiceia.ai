@@ -10,6 +10,7 @@ export interface User {
     last_name?: string | null;
     role: string;
     kyc_type?: string;
+    avatar_url?: string | null;
     can_upload_reports?: boolean;
     vkyc_completed?: boolean;
     isProfessional?: boolean;
@@ -19,6 +20,7 @@ export interface User {
         hourly_rate: number;
         is_verified: boolean;
         is_available: boolean;
+        image_url?: string | null;
     } | null;
 }
 

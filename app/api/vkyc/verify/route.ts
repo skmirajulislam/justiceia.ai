@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
                 tamperProofStatus: certificateRecord.tamper_proof_status || 'VERIFIED & CRYPTOGRAPHICALLY TAMPER-PROOF',
                 issuedAt: certificateRecord.issued_at,
                 advocateName,
+                avatar_url: profile.avatar_url || profile.advocateProfile?.image_url || null,
                 role: roleFormatted,
                 rawRole: profile.role,
                 experienceYears: profile.advocateProfile?.experience ?? 0,

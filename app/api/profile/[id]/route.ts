@@ -45,6 +45,8 @@ export async function GET(
                 address: true,
                 role: true,
                 kyc_type: true,
+                avatar_url: true,
+                avatar_key: true,
                 vkyc_completed: true,
                 vkyc_completed_at: true,
                 can_upload_reports: true,
@@ -108,7 +110,8 @@ export async function PUT(
         }
 
         const existingProfile = await prisma.profile.findUnique({
-            where: { id }
+            where: { id },
+            include: { advocateProfile: true, vkycCertificate: true }
         })
 
         if (!existingProfile) {
@@ -131,6 +134,12 @@ export async function PUT(
         }
         if (data.address !== undefined) {
             updateData.address = data.address
+        }
+        if (data.avatar_url !== undefined) {
+            updateData.avatar_url = data.avatar_url
+        }
+        if (data.avatar_key !== undefined) {
+            updateData.avatar_key = data.avatar_key
         }
 
         // Handle role change only if valid enum
@@ -163,35 +172,89 @@ export async function PUT(
             }
         }
 
+        // Check if role or core advocate identity was updated -> require re-KYC
         const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(targetRole);
+        const nameChanged = (updateData.first_name && updateData.first_name !== existingProfile.first_name) ||
+            (updateData.last_name && updateData.last_name !== existingProfile.last_name);
+        const roleChanged = data.role && String(data.role).toUpperCase() !== existingProfile.role;
 
-        // Update advocate profile fields if user is a legal professional
+        let requiresVkycReset = false;
+        if (isProfessional && (nameChanged || roleChanged)) {
+            requiresVkycReset = true;
+            updateData.vkyc_completed = false;
+            updateData.vkyc_completed_at = null;
+
+            // Invalidate existing VKYC documents & certificates
+            const existingDocs = await prisma.vkycDocument.findMany({
+                where: { user_id: id }
+            });
+
+            if (existingDocs.length > 0) {
+                const docUrls = existingDocs.map(d => d.document_url).filter(Boolean);
+                await deleteUploadThingFiles(docUrls);
+                await prisma.vkycDocument.deleteMany({
+                    where: { user_id: id }
+                });
+            }
+
+            await prisma.vkycCertificate.deleteMany({
+                where: { user_id: id }
+            });
+        }
+
+        // Update Profile
+        await prisma.profile.update({
+            where: { id },
+            data: updateData
+        });
+
+        // Update AdvocateProfile fields if provided
         if (isProfessional) {
-            const advocateUpdate: Record<string, any> = {};
+            const advocateUpdate: Record<string, any> = {
+                updated_at: new Date()
+            };
+
             if (data.specialization !== undefined) {
                 advocateUpdate.specialization = Array.isArray(data.specialization)
                     ? data.specialization
-                    : typeof data.specialization === 'string'
+                    : typeof data.specialization === 'string' && data.specialization.trim()
                         ? data.specialization.split(',').map((s: string) => s.trim()).filter(Boolean)
                         : [];
             }
-            if (data.experience !== undefined) advocateUpdate.experience = Number(data.experience) || 0;
-            if (data.hourly_rate !== undefined) advocateUpdate.hourly_rate = Number(data.hourly_rate) || 0;
-            if (data.hourlyRate !== undefined) advocateUpdate.hourly_rate = Number(data.hourlyRate) || 0;
-            if (data.location !== undefined) advocateUpdate.location = data.location || '';
-            if (data.education !== undefined) advocateUpdate.education = data.education || '';
-            if (data.bio !== undefined) advocateUpdate.bio = data.bio || '';
+            if (data.experience !== undefined) {
+                const expNum = Number(data.experience);
+                if (!isNaN(expNum) && expNum >= 0) advocateUpdate.experience = expNum;
+            }
+            if (data.hourlyRate !== undefined || data.hourly_rate !== undefined) {
+                const rateNum = Number(data.hourlyRate ?? data.hourly_rate);
+                if (!isNaN(rateNum) && rateNum >= 0) advocateUpdate.hourly_rate = rateNum;
+            }
+            if (data.location !== undefined) {
+                advocateUpdate.location = data.location;
+            }
+            if (data.education !== undefined) {
+                advocateUpdate.education = data.education;
+            }
+            if (data.bio !== undefined) {
+                advocateUpdate.bio = data.bio;
+            }
+            if (data.avatar_url !== undefined) {
+                advocateUpdate.image_url = data.avatar_url;
+            }
+            if (data.avatar_key !== undefined) {
+                advocateUpdate.image_key = data.avatar_key;
+            }
             if (data.languages !== undefined) {
                 advocateUpdate.languages = Array.isArray(data.languages)
                     ? data.languages
-                    : typeof data.languages === 'string'
+                    : typeof data.languages === 'string' && data.languages.trim()
                         ? data.languages.split(',').map((s: string) => s.trim()).filter(Boolean)
                         : [];
             }
             if (data.certifications !== undefined) {
                 advocateUpdate.certifications = Array.isArray(data.certifications)
                     ? data.certifications
-                    : typeof data.certifications === 'string'
+                    : typeof data.certifications === 'string' && data.certifications.trim()
                         ? data.certifications.split(',').map((s: string) => s.trim()).filter(Boolean)
                         : [];
             }
@@ -209,40 +272,16 @@ export async function PUT(
                     bio: advocateUpdate.bio || '',
                     languages: advocateUpdate.languages || [],
                     certifications: advocateUpdate.certifications || [],
+                    image_url: updateData.avatar_url || null,
+                    image_key: updateData.avatar_key || null,
                     is_verified: false,
                     is_available: true
                 }
             });
         }
 
-        if (isProfessional) {
-            updateData.vkyc_completed = false;
-            updateData.vkyc_completed_at = null;
-
-            // Fetch and delete all old VKYC documents from UploadThing
-            const oldVkycDocs = await prisma.vkycDocument.findMany({
-                where: { user_id: id }
-            });
-
-            if (oldVkycDocs.length > 0) {
-                const oldUrls = oldVkycDocs.map(doc => doc.document_url);
-                await deleteUploadThingFiles(oldUrls);
-
-                // Delete records from database
-                await prisma.vkycDocument.deleteMany({
-                    where: { user_id: id }
-                });
-            }
-
-            // Remove/invalidate old certificate from DB
-            await prisma.vkycCertificate.deleteMany({
-                where: { user_id: id }
-            });
-        }
-
-        const updatedProfile = await prisma.profile.update({
+        const updatedProfile = await prisma.profile.findUnique({
             where: { id },
-            data: updateData,
             select: {
                 id: true,
                 email: true,
@@ -252,6 +291,8 @@ export async function PUT(
                 address: true,
                 role: true,
                 kyc_type: true,
+                avatar_url: true,
+                avatar_key: true,
                 vkyc_completed: true,
                 vkyc_completed_at: true,
                 can_upload_reports: true,
@@ -265,8 +306,8 @@ export async function PUT(
         return NextResponse.json({
             success: true,
             profile: updatedProfile,
-            requires_vkyc: isProfessional,
-            message: isProfessional
+            requires_vkyc: requiresVkycReset,
+            message: requiresVkycReset
                 ? 'Profile updated. Security Policy: You must complete Video KYC verification before accessing legal features.'
                 : 'Profile updated successfully'
         });
@@ -292,14 +333,61 @@ export async function DELETE(
         }
 
         const existingProfile = await prisma.profile.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                vkycCertificate: true,
+                vkycDocuments: true,
+                advocateProfile: true,
+                reports: true
+            }
         })
 
         if (!existingProfile) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
         }
 
-        // Cleanup related data
+        // Parse verification payload from request
+        const body = await req.json().catch(() => ({}));
+        const inputCertId = String(body.certificateId || '').trim();
+        const inputAuthToken = String(body.authToken || '').trim();
+
+        // If user has a VKYC Certificate, require Certificate ID + Auth Token verification
+        if (existingProfile.vkycCertificate) {
+            const storedCert = existingProfile.vkycCertificate;
+
+            if (!inputCertId || !inputAuthToken) {
+                return NextResponse.json({
+                    error: 'Security Verification Required: Please enter your VKYC Certificate ID and Auth Token to confirm deletion.'
+                }, { status: 400 });
+            }
+
+            const isCertMatch = storedCert.certificate_id.toLowerCase() === inputCertId.toLowerCase();
+            const isAuthMatch = storedCert.auth_token.toLowerCase() === inputAuthToken.toLowerCase();
+
+            if (!isCertMatch || !isAuthMatch) {
+                return NextResponse.json({
+                    error: 'Security Authorization Failed: The Certificate ID or Auth Token provided does not match our records. Deletion aborted.'
+                }, { status: 403 });
+            }
+        }
+
+        // Clean up cloud storage files from UploadThing
+        const filesToDelete: (string | null | undefined)[] = [
+            existingProfile.avatar_key,
+            existingProfile.avatar_url,
+            existingProfile.advocateProfile?.image_key,
+            existingProfile.advocateProfile?.image_url,
+            ...existingProfile.vkycDocuments.map(d => d.document_url),
+            ...existingProfile.reports.map(r => r.uploadthing_key || r.pdf_url)
+        ];
+
+        try {
+            await deleteUploadThingFiles(filesToDelete);
+        } catch (storageErr) {
+            console.warn('Storage cleanup warning during deletion:', storageErr);
+        }
+
+        // Cascade cleanup related database data
         await prisma.payment.deleteMany({
             where: { OR: [{ client_id: id }, { advocate_id: id }] }
         })
@@ -324,19 +412,35 @@ export async function DELETE(
             where: { advocate_id: id }
         })
 
+        await prisma.vkycDocument.deleteMany({
+            where: { user_id: id }
+        })
+
+        await prisma.vkycCertificate.deleteMany({
+            where: { user_id: id }
+        })
+
+        await prisma.advocateProfile.deleteMany({
+            where: { user_id: id }
+        })
+
+        await prisma.report.deleteMany({
+            where: { user_id: id }
+        })
+
         await prisma.profile.delete({
             where: { id }
         })
 
         const response = NextResponse.json({
             success: true,
-            message: 'Profile and all related data deleted successfully'
+            message: 'Profile, credentials, and all associated records permanently deleted.'
         })
 
         response.cookies.delete('auth-token')
         return response
-    } catch (error) {
+    } catch (error: any) {
         console.error('Profile DELETE error:', error)
-        return NextResponse.json({ error: 'Failed to delete profile' }, { status: 500 })
+        return NextResponse.json({ error: error.message || 'Failed to delete profile' }, { status: 500 })
     }
 }

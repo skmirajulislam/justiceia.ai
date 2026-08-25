@@ -115,8 +115,19 @@ const Navbar = () => {
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 text-sm font-medium hover:bg-slate-100/80 dark:hover:bg-slate-800">
-                    <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                  <Button variant="ghost" className="flex items-center space-x-2 text-sm font-medium hover:bg-slate-100/80 dark:hover:bg-slate-800 px-2 py-1.5 rounded-lg">
+                    {session.user?.avatar_url ? (
+                      <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-sky-500/30">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={session.user.avatar_url}
+                          alt={getUserDisplayName()}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                    )}
                     <span className="max-w-[180px] truncate">{getUserDisplayName()}</span>
                   </Button>
                 </DropdownMenuTrigger>
@@ -205,10 +216,21 @@ const Navbar = () => {
                 <>
                   <Link
                     href="/profile"
-                    className="items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                    className="flex items-center space-x-2 w-full text-left text-slate-600 hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <User className="w-4 h-4" />
+                    {session.user?.avatar_url ? (
+                      <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-sky-500/30 shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={session.user.avatar_url}
+                          alt={getUserDisplayName()}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <User className="w-4 h-4" />
+                    )}
                     <span>Profile ({getUserDisplayName()})</span>
                   </Link>
                   <Link

@@ -46,6 +46,7 @@ interface VKYCStatusDashboardProps {
         email?: string;
         address?: string;
         role?: string;
+        avatar_url?: string | null;
         vkyc_completed?: boolean;
         vkyc_completed_at?: string | Date | null;
         advocateProfile?: {
@@ -57,6 +58,7 @@ interface VKYCStatusDashboardProps {
             certifications?: string[];
             hourly_rate?: number;
             location?: string;
+            image_url?: string | null;
             rating?: number;
             total_consultations?: number;
         } | null;
@@ -260,9 +262,23 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                 
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-start sm:items-center space-x-4">
-                        <div className="p-3.5 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl text-emerald-400 shadow-inner">
-                            <ShieldCheck className="w-9 h-9" />
-                        </div>
+                        {(profile.avatar_url || profile.advocateProfile?.image_url) ? (
+                            <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-emerald-400/50 shadow-lg shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={profile.avatar_url || profile.advocateProfile?.image_url || ''}
+                                    alt={advocateName}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute bottom-0 right-0 p-0.5 bg-emerald-500 rounded-tl-md text-white">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-3.5 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl text-emerald-400 shadow-inner shrink-0">
+                                <ShieldCheck className="w-9 h-9" />
+                            </div>
+                        )}
                         <div>
                             <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                 <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full flex items-center gap-1">
@@ -699,10 +715,32 @@ export const VKYCStatusDashboard: React.FC<VKYCStatusDashboardProps> = ({ profil
                                     <span className="font-mono text-slate-500">{verifyResult.certificateId}</span>
                                 </div>
 
-                                <div className="space-y-1.5 text-slate-800 dark:text-slate-200">
-                                    <div className="text-sm font-bold text-slate-900 dark:text-white">
-                                        {verifyResult.advocateName} ({verifyResult.role})
+                                <div className="flex items-center space-x-3 p-2 bg-white dark:bg-slate-900 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                    <div className="relative w-12 h-12 rounded-xl overflow-hidden ring-1 ring-emerald-500 shrink-0 bg-slate-100 dark:bg-slate-800">
+                                        {verifyResult.avatar_url ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={verifyResult.avatar_url}
+                                                alt={verifyResult.advocateName}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white font-bold">
+                                                {verifyResult.advocateName?.charAt(0) || 'L'}
+                                            </div>
+                                        )}
                                     </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                            {verifyResult.advocateName}
+                                        </div>
+                                        <div className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                                            {verifyResult.role} • {verifyResult.experienceYears} Years Exp
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5 text-slate-800 dark:text-slate-200">
                                     <div className="flex justify-between">
                                         <span className="text-slate-500">Experience:</span>
                                         <span className="font-semibold">{verifyResult.experienceYears} Years</span>
