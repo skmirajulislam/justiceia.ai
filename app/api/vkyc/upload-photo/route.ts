@@ -38,9 +38,11 @@ export async function POST(req: NextRequest) {
             throw new Error(uploadResult.error.message);
         }
 
+        const fileUrl = uploadResult.data.ufsUrl || (uploadResult.data as any).url;
+
         return NextResponse.json({
             success: true,
-            url: uploadResult.data.url,
+            url: fileUrl,
             key: uploadResult.data.key,
             publicId: uploadResult.data.key,
         });

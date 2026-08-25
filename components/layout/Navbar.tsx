@@ -260,13 +260,15 @@ const Navbar = () => {
                 Video KYC Verification Required
               </AlertDialogTitle>
             </div>
-            <AlertDialogDescription className="text-sm text-slate-600 space-y-2">
-              <p>
-                As an advocate on Justiceia.ai, your profile updates require completing Video KYC before you can access consultation and document tools.
-              </p>
-              <p className="font-semibold text-slate-800">
-                Please complete your Video KYC verification to unlock full platform access.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-slate-600 space-y-2">
+                <p>
+                  As an advocate on Justiceia.ai, your profile updates require completing Video KYC before you can access consultation and document tools.
+                </p>
+                <p className="font-semibold text-slate-800">
+                  Please complete your Video KYC verification to unlock full platform access.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 flex-col sm:flex-row gap-2">

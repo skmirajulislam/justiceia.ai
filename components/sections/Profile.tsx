@@ -686,13 +686,15 @@ const Profile = () => {
                                 Video KYC Verification Required
                             </AlertDialogTitle>
                         </div>
-                        <AlertDialogDescription className="text-sm text-slate-600 space-y-2">
-                            <p>
-                                Because your advocate profile details have been updated, our security and legal compliance policy requires you to re-complete Video KYC verification.
-                            </p>
-                            <p className="font-semibold text-slate-800">
-                                Old verification documents have been cleared from cloud storage. You will be restricted from accessing consultations and legal features until you complete your new Video KYC.
-                            </p>
+                        <AlertDialogDescription asChild>
+                            <div className="text-sm text-slate-600 space-y-2">
+                                <p>
+                                    Because your advocate profile details have been updated, our security and legal compliance policy requires you to re-complete Video KYC verification.
+                                </p>
+                                <p className="font-semibold text-slate-800">
+                                    Old verification documents have been cleared from cloud storage. You will be restricted from accessing consultations and legal features until you complete your new Video KYC.
+                                </p>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="mt-4 flex-col sm:flex-row gap-2">

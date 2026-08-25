@@ -101,10 +101,11 @@ export async function POST(request: NextRequest) {
         }
 
         const fileData = uploadResult.data;
+        const fileUrl = fileData.ufsUrl || (fileData as any).url;
 
         return NextResponse.json({
-            url: fileData.url,
-            secure_url: fileData.url,
+            url: fileUrl,
+            secure_url: fileUrl,
             preview_url: null,
             thumbnail_url: null,
             public_id: fileData.key,

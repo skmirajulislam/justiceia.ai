@@ -52,7 +52,7 @@ export const ourFileRouter = {
             return { userId: user.id };
         })
         .onUploadComplete(async ({ metadata, file }) => {
-            return { uploadedBy: metadata.userId, url: file.url, key: file.key };
+            return { uploadedBy: metadata.userId, url: file.ufsUrl || (file as any).url, key: file.key };
         }),
 
     // Case Report PDF Uploader (for Lawyers, Barristers, Government Officials)
@@ -71,7 +71,7 @@ export const ourFileRouter = {
             return { userId: user.id };
         })
         .onUploadComplete(async ({ metadata, file }) => {
-            return { uploadedBy: metadata.userId, url: file.url, key: file.key };
+            return { uploadedBy: metadata.userId, url: file.ufsUrl || (file as any).url, key: file.key };
         }),
 
     // Avatar / Profile Picture Uploader
@@ -84,7 +84,7 @@ export const ourFileRouter = {
             return { userId: user.id };
         })
         .onUploadComplete(async ({ metadata, file }) => {
-            return { uploadedBy: metadata.userId, url: file.url, key: file.key };
+            return { uploadedBy: metadata.userId, url: file.ufsUrl || (file as any).url, key: file.key };
         }),
 } satisfies FileRouter;
 
