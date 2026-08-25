@@ -69,7 +69,7 @@ const DocumentProcessor = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isTranslating, setIsTranslating] = useState(false);
     const [apiKey, setApiKey] = useState('');
-    const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
     // Document Generation Form
     const [docType, setDocType] = useState('');
@@ -192,7 +192,7 @@ const DocumentProcessor = () => {
                 body: JSON.stringify({
                     fileContent,
                     fileName,
-                    apiKey
+                    apiKey: apiKey || undefined
                 }),
             });
 
@@ -201,9 +201,12 @@ const DocumentProcessor = () => {
             if (response.ok) {
                 return data.analysis;
             } else {
+                if (data.requiresApiKey) {
+                    setShowApiKeyInput(true);
+                }
                 throw new Error(data.error || 'Analysis failed');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Analysis error:', error);
             return null;
         }
@@ -211,15 +214,6 @@ const DocumentProcessor = () => {
 
     // Analysis Dropzone
     const onDropAnalyze = useCallback(async (acceptedFiles: File[]) => {
-        if (!apiKey) {
-            toast({
-                title: "API Key Required",
-                description: "Please set your Gemini API key first.",
-                variant: "destructive",
-            });
-            return;
-        }
-
         setIsAnalyzing(true);
 
         for (const file of acceptedFiles) {
@@ -280,15 +274,6 @@ const DocumentProcessor = () => {
 
     // Translation Dropzone
     const onDropTranslate = useCallback(async (acceptedFiles: File[]) => {
-        if (!apiKey) {
-            toast({
-                title: "API Key Required",
-                description: "Please set your Gemini API key first.",
-                variant: "destructive",
-            });
-            return;
-        }
-
         if (!targetLanguage) {
             toast({
                 title: "Language Required",
@@ -327,7 +312,7 @@ const DocumentProcessor = () => {
                         fileContent,
                         fileName: file.name,
                         targetLanguage,
-                        apiKey
+                        apiKey: apiKey || undefined
                     }),
                 });
 
@@ -351,6 +336,9 @@ const DocumentProcessor = () => {
                         description: `${file.name} has been translated successfully`,
                     });
                 } else {
+                    if (data.requiresApiKey) {
+                        setShowApiKeyInput(true);
+                    }
                     throw new Error(data.error || 'Translation failed');
                 }
             } catch (error) {
@@ -390,15 +378,6 @@ const DocumentProcessor = () => {
     });
 
     const generateDocument = async () => {
-        if (!apiKey) {
-            toast({
-                title: "API Key Required",
-                description: "Please set your Gemini API key first.",
-                variant: "destructive",
-            });
-            return;
-        }
-
         if (!docType || !docTitle || !docDescription) {
             toast({
                 title: "Missing Information",
@@ -432,7 +411,7 @@ const DocumentProcessor = () => {
                     type: docType,
                     title: docTitle,
                     description: docDescription,
-                    apiKey
+                    apiKey: apiKey || undefined
                 }),
             });
 
@@ -460,6 +439,9 @@ const DocumentProcessor = () => {
                 setDocTitle('');
                 setDocDescription('');
             } else {
+                if (data.requiresApiKey) {
+                    setShowApiKeyInput(true);
+                }
                 throw new Error(data.error || 'Generation failed');
             }
         } catch (error) {

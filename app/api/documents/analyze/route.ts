@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithGemini } from '@/lib/gemini';
 import { extractPDFText, extractPDFTextAdvanced } from '@/lib/pdfExtractor';
 
 export async function POST(req: NextRequest) {
     try {
         const { fileContent, fileName, apiKey } = await req.json();
 
-        if (!fileContent || !apiKey) {
+        const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+
+        if (!fileContent) {
             return NextResponse.json(
-                { error: 'File content and API key are required' },
+                { error: 'File content is required' },
+                { status: 400 }
+            );
+        }
+
+        if (!effectiveApiKey) {
+            return NextResponse.json(
+                { error: 'Gemini API key not configured on the server. Please provide an API key.', requiresApiKey: true },
                 { status: 400 }
             );
         }
@@ -71,9 +80,6 @@ export async function POST(req: NextRequest) {
 
         // Analyze with AI
         try {
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
             const analysisPrompt = `You are a professional legal document analyzer. Please analyze the following document and provide a comprehensive legal analysis.
 
 DOCUMENT CONTENT:
@@ -114,9 +120,7 @@ ANALYSIS REQUIREMENTS:
 
 Ensure your analysis is thorough, professional, and directly related to the document content.`;
 
-            const result = await model.generateContent(analysisPrompt);
-            const response = result.response;
-            const text = response.text();
+            const text = await generateWithGemini(effectiveApiKey, analysisPrompt);
 
             try {
                 const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();

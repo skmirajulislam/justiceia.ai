@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithGemini } from '@/lib/gemini';
 import { extractPDFText, extractPDFTextAdvanced } from '@/lib/pdfExtractor';
 
 export async function POST(req: NextRequest) {
     try {
         const { fileContent, fileName, targetLanguage, apiKey } = await req.json();
 
-        if (!fileContent || !targetLanguage || !apiKey) {
+        const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+
+        if (!fileContent || !targetLanguage) {
             return NextResponse.json(
-                { error: 'File content, target language, and API key are required' },
+                { error: 'File content and target language are required' },
+                { status: 400 }
+            );
+        }
+
+        if (!effectiveApiKey) {
+            return NextResponse.json(
+                { error: 'Gemini API key not configured on the server. Please provide an API key.', requiresApiKey: true },
                 { status: 400 }
             );
         }
@@ -71,9 +80,6 @@ export async function POST(req: NextRequest) {
 
         // Translate with AI
         try {
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
             const languageMap = {
                 'english': 'English',
                 'bengali': 'Bengali',
@@ -95,13 +101,6 @@ Please translate the following document text into ${targetLangName}:
 DOCUMENT TEXT:
 ${documentText}
 
-TRANSLATION REQUIREMENTS:
-1. **Target Language**: ${targetLangName}
-2. **Maintain Document Structure**: Keep all formatting, sections, and layout
-3. **Legal Accuracy**: Ensure legal terms are translated accurately
-4. **Cultural Context**: Adapt content appropriately for the target language
-5. **Professional Tone**: Maintain formal, professional language
-
 Please provide your response in the following JSON format:
 
 {
@@ -118,9 +117,7 @@ IMPORTANT GUIDELINES:
 
 Ensure the translation is accurate, professional, and legally sound for ${targetLangName} speakers.`;
 
-            const result = await model.generateContent(translationPrompt);
-            const response = result.response;
-            const text = response.text();
+            const text = await generateWithGemini(effectiveApiKey, translationPrompt);
 
             try {
                 const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();

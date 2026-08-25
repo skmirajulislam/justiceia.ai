@@ -79,10 +79,12 @@ const RazorpayPaymentModal: React.FC<RazorpayPaymentModalProps> = ({
 
             setOrderData(order);
 
-            // 2. If Razorpay SDK is loaded and valid key exists, launch standard checkout
-            if (window.Razorpay && !order.is_simulated && order.key_id && !order.key_id.includes('mock')) {
+            const activeKeyId = order.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+            // 2. If Razorpay SDK is loaded, launch standard Razorpay modal checkout
+            if (window.Razorpay && activeKeyId) {
                 const options = {
-                    key: order.key_id,
+                    key: activeKeyId,
                     amount: Math.round(order.amount * 100),
                     currency: order.currency || 'INR',
                     name: 'Justiceia.ai',
@@ -99,9 +101,17 @@ const RazorpayPaymentModal: React.FC<RazorpayPaymentModalProps> = ({
                     modal: {
                         ondismiss: () => {
                             setLoading(false);
+                            toast({
+                                title: 'Payment Dismissed',
+                                description: 'Checkout modal was closed before completing payment.',
+                            });
                         },
                     },
-                    handler: async function (response: any) {
+                    handler: async function (response: {
+                        razorpay_payment_id: string;
+                        razorpay_order_id: string;
+                        razorpay_signature: string;
+                    }) {
                         await verifyPayment(response, order.order_id, false);
                     },
                 };
@@ -110,7 +120,7 @@ const RazorpayPaymentModal: React.FC<RazorpayPaymentModalProps> = ({
                 rzp.on('payment.failed', function (resp: any) {
                     toast({
                         title: 'Payment Failed',
-                        description: resp.error?.description || 'Payment could not be completed',
+                        description: resp.error?.description || resp.error?.reason || 'Payment could not be completed',
                         variant: 'destructive',
                     });
                     setLoading(false);
@@ -118,7 +128,7 @@ const RazorpayPaymentModal: React.FC<RazorpayPaymentModalProps> = ({
 
                 rzp.open();
             } else {
-                // In sandbox / simulated test mode
+                // Fallback simulation only if Razorpay script could not load
                 await simulateSandboxPayment(order.order_id);
             }
         } catch (error: any) {

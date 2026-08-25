@@ -1,68 +1,111 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+
+function base64UrlDecode(str: string): Uint8Array {
+    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+        base64 += '=';
+    }
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+async function verifyJwtInEdge(token: string, secret: string): Promise<boolean> {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return false;
+
+        const [headerB64, payloadB64, signatureB64] = parts;
+        const payloadJson = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
+
+        // Check expiration
+        if (payloadJson.exp && Date.now() >= payloadJson.exp * 1000) {
+            return false;
+        }
+
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+            'raw',
+            enc.encode(secret),
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['verify']
+        );
+
+        const data = enc.encode(`${headerB64}.${payloadB64}`);
+        const signature = base64UrlDecode(signatureB64);
+
+        return await crypto.subtle.verify('HMAC', key, signature, data);
+    } catch (e) {
+        console.warn('Edge JWT verification error:', e);
+        return false;
+    }
+}
 
 export async function middleware(request: NextRequest) {
-    const { pathname } = request.nextUrl
-    const token = request.cookies.get('auth-token')?.value
+    const { pathname } = request.nextUrl;
+    const token = request.cookies.get('auth-token')?.value;
 
-    console.log('Middleware checking:', pathname);
-
-    // Allow all API routes to pass through without authentication checks
-    if (pathname.startsWith('/api/')) {
-        console.log('Allowing API route:', pathname);
+    // Allow all API routes, static files, and Next.js internals
+    if (
+        pathname.startsWith('/api/') ||
+        pathname.startsWith('/_next/') ||
+        pathname.includes('.')
+    ) {
         return NextResponse.next();
     }
 
-    // Public routes that don't require authentication
-    const publicPaths = ['/', '/auth']
-    const isPublicPath = publicPaths.some(path => pathname === path)
+    // Public routes
+    const publicPaths = ['/', '/auth'];
+    const isPublicPath = publicPaths.includes(pathname);
 
-    // Protected routes that require authentication AND VKYC
-    const vkycRequiredPaths = ['/chatbot', '/library', '/consult', '/document-processor', '/publish-report', '/profile']
-    const isVKYCRequiredPath = vkycRequiredPaths.some(path => pathname.startsWith(path))
+    // Protected routes that require authentication
+    const protectedPrefixes = [
+        '/chatbot',
+        '/library',
+        '/consult',
+        '/document-processor',
+        '/publish-report',
+        '/profile',
+        '/vkyc',
+    ];
+    const isProtectedPath = protectedPrefixes.some((prefix) =>
+        pathname.startsWith(prefix)
+    );
 
-    // VKYC route (requires auth but not VKYC completion)
-    const isVKYCPath = pathname === '/vkyc'
-
-    console.log('Route analysis:', {
-        pathname,
-        isPublicPath,
-        isVKYCRequiredPath,
-        isVKYCPath,
-        hasToken: !!token
-    });
-
-    // If no token and accessing protected routes, redirect to auth
-    if (!token && (isVKYCRequiredPath || isVKYCPath)) {
-        console.log('No token, redirecting to auth');
+    // If accessing protected route without a token, redirect to /auth
+    if (!token && isProtectedPath) {
         return NextResponse.redirect(new URL('/auth', request.url));
     }
 
-    // For protected routes with token, validate it
-    if (token && (isVKYCRequiredPath || isVKYCPath)) {
-        try {
-            // Validate token using API route
-            const validateResponse = await fetch(new URL('/api/auth/validate', request.url), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
-            });
-
-            const { valid } = await validateResponse.json();
-
-            if (!valid) {
-                throw new Error('Invalid token');
+    // If token is present on protected route, verify it in Edge
+    if (token && isProtectedPath) {
+        const secret = process.env.JWT_SECRET;
+        if (secret) {
+            const isValid = await verifyJwtInEdge(token, secret);
+            if (!isValid) {
+                console.log(`Invalid or expired token for ${pathname}, redirecting to /auth`);
+                const response = NextResponse.redirect(new URL('/auth', request.url));
+                response.cookies.delete('auth-token');
+                return response;
             }
-
-            console.log('Token validated successfully');
-        } catch (error) {
-            console.log('Token validation failed:', error);
-            const response = NextResponse.redirect(new URL('/auth', request.url));
-            response.cookies.delete('auth-token');
-            return response;
         }
     }
 
-    console.log('Allowing request to proceed');
+    // If user is already authenticated and visits /auth, redirect to /profile or /consult
+    if (token && isPublicPath && pathname === '/auth') {
+        const secret = process.env.JWT_SECRET;
+        if (secret) {
+            const isValid = await verifyJwtInEdge(token, secret);
+            if (isValid) {
+                return NextResponse.redirect(new URL('/consult', request.url));
+            }
+        }
+    }
+
     return NextResponse.next();
 }
 
@@ -70,4 +113,4 @@ export const config = {
     matcher: [
         '/((?!_next/static|_next/image|favicon.ico).*)',
     ],
-}
+};

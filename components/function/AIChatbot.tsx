@@ -241,7 +241,7 @@ const AIChatbot = () => {
                                         <span>Justiceia Legal AI Assistant</span>
                                     </CardTitle>
                                     <CardDescription className="text-xs">
-                                        Powered by Google Gemini 1.5 Flash
+                                        Powered by Google Gemini AI
                                     </CardDescription>
                                 </div>
                             </div>

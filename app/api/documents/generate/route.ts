@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithGemini } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
     try {
         const { type, title, description, apiKey } = await req.json();
 
-        if (!type || !title || !description || !apiKey) {
+        const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+
+        if (!type || !title || !description) {
             return NextResponse.json(
-                { error: 'All fields are required' },
+                { error: 'Type, title, and description are required' },
                 { status: 400 }
             );
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        if (!effectiveApiKey) {
+            return NextResponse.json(
+                { error: 'Gemini API key not configured on the server. Please provide an API key.', requiresApiKey: true },
+                { status: 400 }
+            );
+        }
 
         // Document type specific prompts
         const documentTemplates = {
@@ -65,9 +71,7 @@ Please create a comprehensive, professional legal document that includes:
 
 Generate a complete, ready-to-use legal document that follows industry standards and best practices. The document should be comprehensive and professional.`;
 
-        const result = await model.generateContent(generationPrompt);
-        const response = result.response;
-        const content = response.text();
+        const content = await generateWithGemini(effectiveApiKey, generationPrompt);
 
         // Clean up the content
         const cleanContent = content

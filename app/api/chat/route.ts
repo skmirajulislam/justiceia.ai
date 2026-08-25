@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithGemini } from '@/lib/gemini';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 
@@ -46,17 +46,13 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
         const legalContext = `You are a knowledgeable legal AI assistant named Justiceia AI specializing in Indian law, constitutional law, procedural codes (IPC/BNS, CrPC/BNSS, CPC), corporate compliance, and general legal principles.
 You provide helpful, precise, and professional legal guidance.
 Always maintain a professional tone and provide practical legal insights.
 
 User question: ${message}`;
 
-        const result = await model.generateContent(legalContext);
-        const responseText = result.response.text();
+        const responseText = await generateWithGemini(apiKey, legalContext);
 
         return NextResponse.json({
             success: true,
