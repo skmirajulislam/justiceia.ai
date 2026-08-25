@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Upload, Loader2, Trash2, Eye, Calendar, Scale, Tag, Plus, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FileText, Upload, Loader2, Trash2, Eye, Calendar, Scale, Tag, Plus, X, AlertCircle, CheckCircle, ExternalLink, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfileAction } from '@/lib/database-actions';
@@ -68,6 +69,7 @@ const PublishReport = () => {
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [viewingReport, setViewingReport] = useState<Report | null>(null);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -342,8 +344,59 @@ const PublishReport = () => {
         }
     };
 
-    const viewPDF = (url: string) => {
-        window.open(url, '_blank');
+    const viewPDF = (report: Report) => {
+        setViewingReport(report);
+    };
+
+    const handleDownloadReport = async (pdfUrl: string, title: string) => {
+        try {
+            toast({
+                title: "Starting Download",
+                description: `Downloading ${title}...`,
+            });
+
+            const downloadEndpoint = `/api/documents/download-file?url=${encodeURIComponent(pdfUrl)}&filename=${encodeURIComponent(title)}`;
+            const response = await fetch(downloadEndpoint);
+            
+            if (!response.ok) {
+                const directRes = await fetch(pdfUrl);
+                if (!directRes.ok) throw new Error('Download failed');
+                const blob = await directRes.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const sanitizedTitle = (title || 'report').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `${sanitizedTitle}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            } else {
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const sanitizedTitle = (title || 'report').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `${sanitizedTitle}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+            }
+
+            toast({
+                title: "Download Complete",
+                description: `${title}.pdf saved successfully.`,
+            });
+        } catch (error) {
+            console.error('Download error:', error);
+            const link = document.createElement('a');
+            link.href = `/api/documents/download-file?url=${encodeURIComponent(pdfUrl)}&filename=${encodeURIComponent(title)}`;
+            link.download = `${title}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     };
 
     const formatFileSize = (bytes: number) => {
@@ -692,14 +745,24 @@ const PublishReport = () => {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    onClick={() => viewPDF(report.pdf_url)}
+                                                                    onClick={() => viewPDF(report)}
+                                                                    title="View PDF"
                                                                 >
                                                                     <Eye className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleDownloadReport(report.pdf_url, report.title)}
+                                                                    title="Download PDF"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
                                                                 </Button>
                                                                 <Button
                                                                     variant="destructive"
                                                                     size="sm"
                                                                     onClick={() => deleteReport(report.id, report.uploadthing_key || report.cloudinary_public_id)}
+                                                                    title="Delete Report"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>
@@ -716,6 +779,70 @@ const PublishReport = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Large Interactive PDF Reader Popup Modal */}
+            {viewingReport && (
+                <Dialog open={!!viewingReport} onOpenChange={(open) => !open && setViewingReport(null)}>
+                    <DialogContent className="max-w-6xl w-[96vw] h-[92vh] max-h-[92vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl overflow-hidden">
+                        <DialogHeader className="pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-8">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" className="text-xs bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800">
+                                            {viewingReport.category}
+                                        </Badge>
+                                        {viewingReport.court && (
+                                            <Badge variant="secondary" className="text-xs">
+                                                <Scale className="w-3 h-3 mr-1" />
+                                                {viewingReport.court}
+                                            </Badge>
+                                        )}
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                                            Published {new Date(viewingReport.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                                        {viewingReport.title}
+                                    </DialogTitle>
+                                    {viewingReport.description && (
+                                        <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                                            {viewingReport.description}
+                                        </DialogDescription>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end sm:self-auto">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(viewingReport.pdf_url, '_blank')}
+                                        className="h-8 px-3 text-xs flex items-center gap-1.5 border-slate-200 dark:border-slate-700"
+                                        title="Open PDF in new browser tab"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" /> Full Tab
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleDownloadReport(viewingReport.pdf_url, viewingReport.title)}
+                                        className="h-8 px-3 bg-sky-600 hover:bg-sky-700 text-white text-xs flex items-center gap-1.5 shadow-sm"
+                                    >
+                                        <Download className="w-3.5 h-3.5" /> Download
+                                    </Button>
+                                </div>
+                            </div>
+                        </DialogHeader>
+
+                        {/* PDF Viewport Container */}
+                        <div className="flex-1 w-full relative min-h-0 pt-3 bg-slate-100 dark:bg-slate-950 rounded-xl overflow-hidden shadow-inner">
+                            <iframe
+                                src={`${viewingReport.pdf_url}#toolbar=1&navpanes=0`}
+                                title={viewingReport.title}
+                                className="w-full h-full rounded-lg border-0 bg-white dark:bg-slate-950"
+                            />
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };

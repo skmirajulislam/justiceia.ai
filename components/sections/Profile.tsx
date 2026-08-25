@@ -434,32 +434,32 @@ const Profile = () => {
                             <CardDescription>{profile?.email}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center py-2 border-b">
-                                <span className="font-medium">Role:</span>
-                                <span className="text-slate-600 font-semibold">{profile?.role || 'REGULAR_USER'}</span>
+                            <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-800">
+                                <span className="font-medium text-slate-700 dark:text-slate-300">Role:</span>
+                                <span className="text-slate-600 dark:text-slate-400 font-semibold">{profile?.role || 'REGULAR_USER'}</span>
                             </div>
 
-                            <div className="flex justify-between items-center py-2 border-b">
-                                <span className="font-medium">KYC Status:</span>
+                            <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-800">
+                                <span className="font-medium text-slate-700 dark:text-slate-300">KYC Status:</span>
                                 <div className="flex items-center space-x-1">
                                     {profile?.vkyc_completed ? (
                                         <>
                                             <CheckCircle className="w-4 h-4 text-green-500" />
-                                            <span className="text-green-600 text-sm font-medium">Completed</span>
+                                            <span className="text-green-600 dark:text-green-400 text-sm font-medium">Completed</span>
                                         </>
                                     ) : (
                                         <>
                                             <Clock className="w-4 h-4 text-amber-500" />
-                                            <span className="text-amber-600 text-sm font-medium">Pending VKYC</span>
+                                            <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">Pending VKYC</span>
                                         </>
                                     )}
                                 </div>
                             </div>
 
                             {isProfessionalUser && !profile?.vkyc_completed && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-2">
+                                <div className="bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 space-y-2">
                                     <div className="flex items-center gap-1.5 font-semibold">
-                                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                                         <span>Action Required</span>
                                     </div>
                                     <p>Your advocate profile requires completing Video KYC verification before accessing other features.</p>
@@ -473,30 +473,30 @@ const Profile = () => {
                                 </div>
                             )}
 
-                            <div className="flex justify-between items-center py-2 border-b">
-                                <span className="font-medium">Reports:</span>
-                                <div className="flex items-center space-x-1 text-sky-600">
+                            <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-800">
+                                <span className="font-medium text-slate-700 dark:text-slate-300">Reports:</span>
+                                <div className="flex items-center space-x-1 text-sky-600 dark:text-sky-400">
                                     <FileText className="w-4 h-4" />
                                     <span>{profile?.reports?.length || 0}</span>
                                 </div>
                             </div>
 
                             {isProfessionalUser && (
-                                <div className="pt-2 space-y-2 text-xs text-slate-600 border-t">
+                                <div className="pt-1 space-y-2 text-xs text-slate-600 dark:text-slate-400">
                                     <div className="flex justify-between items-center">
-                                        <span className="font-medium">Experience:</span>
-                                        <span className="font-semibold text-slate-800">{profile?.advocateProfile?.experience ?? 0} Years</span>
+                                        <span className="font-medium text-slate-700 dark:text-slate-300">Experience:</span>
+                                        <span className="font-semibold text-slate-800 dark:text-slate-200">{profile?.advocateProfile?.experience ?? 0} Years</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="font-medium">Consultation Rate:</span>
-                                        <span className="font-semibold text-slate-800">₹{profile?.advocateProfile?.hourly_rate ?? 0}/hr</span>
+                                        <span className="font-medium text-slate-700 dark:text-slate-300">Consultation Rate:</span>
+                                        <span className="font-semibold text-slate-800 dark:text-slate-200">₹{profile?.advocateProfile?.hourly_rate ?? 0}/hr</span>
                                     </div>
                                     {profile?.advocateProfile?.specialization && profile.advocateProfile.specialization.length > 0 && (
                                         <div className="pt-1">
-                                            <span className="font-medium block mb-1">Specializations:</span>
+                                            <span className="font-medium text-slate-700 dark:text-slate-300 block mb-1">Specializations:</span>
                                             <div className="flex flex-wrap gap-1">
                                                 {profile.advocateProfile.specialization.map((spec, i) => (
-                                                    <span key={i} className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded text-[11px] font-medium border border-sky-200">
+                                                    <span key={i} className="bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded text-[11px] font-medium border border-sky-200 dark:border-sky-800">
                                                         {spec}
                                                     </span>
                                                 ))}
