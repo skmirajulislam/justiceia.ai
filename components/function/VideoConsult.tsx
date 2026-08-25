@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +21,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import io, { Socket } from 'socket.io-client';
-import FakePaymentForm from '@/components/function/FakePaymentForm';
+import RazorpayPaymentModal from '@/components/function/RazorpayPaymentModal';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -180,13 +179,13 @@ const VideoCallContext = createContext<VideoCallContextType>({
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-    const { data: session } = useSession();
+    const { session } = useAuth();
 
     useEffect(() => {
         if (!session?.user?.id) return;
 
         const newSocket = io('/', {
-            path: '/api/socket',
+            path: '/pages/api/socket',
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
@@ -1430,12 +1429,12 @@ const VideoConsult = () => {
                         />
                     )}
 
-                    {/* Fake Payment Form Dialog */}
+                    {/* Razorpay Payment Form Dialog */}
                     {showPaymentForm && paymentData && (
                         <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
-                            <DialogContent className="max-w-md">
-                                <FakePaymentForm
-                                    sessionId={paymentData.sessionId}
+                            <DialogContent className="max-w-md p-0 overflow-hidden border-none bg-transparent">
+                                <RazorpayPaymentModal
+                                    requestId={paymentData.requestId || paymentData.sessionId}
                                     amount={paymentData.amount}
                                     advocateName={paymentData.advocateName}
                                     description={paymentData.description}

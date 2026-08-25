@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
+import { KycType } from '@/app/generated/prisma'
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
         }
 
         const decoded = jwt.verify(token, jwtSecret) as { userId: string }
-        const { profileData, documents, kycType } = await req.json()
+        const { profileData, documents } = await req.json()
 
         // Validate that user exists and get their role
         const existingProfile = await prisma.profile.findUnique({
@@ -30,52 +31,78 @@ export async function POST(req: NextRequest) {
         }
 
         // Determine the correct KYC type based on user role
-        let finalKycType: 'REGULAR' | 'PROFESSIONAL';
-
-        if (existingProfile.role === 'REGULAR_USER') {
-            finalKycType = 'REGULAR';
-        } else if (existingProfile.role === 'BARRISTER' ||
-            existingProfile.role === 'LAWYER' ||
-            existingProfile.role === 'GOVERNMENT_OFFICIAL') {
-            finalKycType = 'PROFESSIONAL';
-        } else {
-            // Default fallback
-            finalKycType = 'REGULAR';
+        let finalKycType: KycType = KycType.REGULAR;
+        const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(existingProfile.role);
+        if (isProfessional) {
+            finalKycType = KycType.PROFESSIONAL;
         }
 
-        // Update profile with VKYC completion
+        // Whitelist profileData fields to prevent mass assignment
+        const safeProfileUpdate: Record<string, any> = {
+            vkyc_completed: true,
+            vkyc_completed_at: new Date(),
+            kyc_type: finalKycType,
+            updated_at: new Date(),
+        };
+
+        if (isProfessional) {
+            safeProfileUpdate.can_upload_reports = true;
+        }
+
+        if (profileData) {
+            if (profileData.firstName || profileData.first_name) {
+                safeProfileUpdate.first_name = profileData.firstName || profileData.first_name;
+            }
+            if (profileData.lastName || profileData.last_name) {
+                safeProfileUpdate.last_name = profileData.lastName || profileData.last_name;
+            }
+            if (profileData.phone) {
+                safeProfileUpdate.phone = profileData.phone;
+            }
+            if (profileData.address) {
+                safeProfileUpdate.address = profileData.address;
+            }
+        }
+
+        // Update profile
         await prisma.profile.update({
             where: { id: decoded.userId },
-            data: {
-                ...profileData,
-                vkyc_completed: true,
-                vkyc_completed_at: new Date(),
-                updated_at: new Date()
-            }
+            data: safeProfileUpdate
         })
 
         // Save document records if provided
         if (documents && Array.isArray(documents) && documents.length > 0) {
-            // First, delete any existing VKYC documents for this user
             await prisma.vkycDocument.deleteMany({
                 where: { user_id: decoded.userId }
             })
 
-            // Create new VKYC documents with correct enum value
             await prisma.vkycDocument.createMany({
                 data: documents.map((doc: { type?: string; document_type?: string; url?: string; document_url?: string }) => ({
                     user_id: decoded.userId,
-                    document_type: doc.type || doc.document_type || 'unknown',
+                    document_type: doc.type || doc.document_type || 'identity_document',
                     document_url: doc.url || doc.document_url || '',
                     kyc_type: finalKycType
                 }))
             })
         }
 
-        // Fetch updated profile with related data
+        // Fetch updated profile without exposing password
         const profileWithData = await prisma.profile.findUnique({
             where: { id: decoded.userId },
-            include: {
+            select: {
+                id: true,
+                email: true,
+                first_name: true,
+                last_name: true,
+                phone: true,
+                address: true,
+                role: true,
+                kyc_type: true,
+                vkyc_completed: true,
+                vkyc_completed_at: true,
+                can_upload_reports: true,
+                created_at: true,
+                updated_at: true,
                 advocateProfile: true,
                 vkycDocuments: true
             }

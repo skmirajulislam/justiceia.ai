@@ -40,7 +40,7 @@ interface Profile {
     last_name?: string;
     phone?: string;
     address?: string;
-    kyc_type?: 'basic' | 'full';
+    kyc_type?: string;
     role?: string;
     vkyc_completed?: boolean;
 }

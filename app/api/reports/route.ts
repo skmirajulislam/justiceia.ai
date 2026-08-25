@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { v2 as cloudinary } from 'cloudinary';
+import { UTApi } from 'uploadthing/server';
 import prisma from '@/lib/prisma';
 
-// Configure Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const utapi = new UTApi();
 
 // Helper function to get session from JWT token
 async function getSession(request: NextRequest) {
@@ -19,8 +14,13 @@ async function getSession(request: NextRequest) {
             return null;
         }
 
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return null;
+        }
+
         // Verify JWT token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string };
+        const decoded = jwt.verify(token, jwtSecret) as { userId: string; email?: string };
 
         // Fetch user data from database
         const profile = await prisma.profile.findUnique({
@@ -31,8 +31,9 @@ async function getSession(request: NextRequest) {
                 first_name: true,
                 last_name: true,
                 role: true,
-                vkyc_completed: true
-            }
+                vkyc_completed: true,
+                can_upload_reports: true,
+            },
         });
 
         if (!profile) {
@@ -43,10 +44,11 @@ async function getSession(request: NextRequest) {
             user: {
                 id: profile.id,
                 email: profile.email,
-                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email || 'User',
                 role: profile.role,
-                vkyc_completed: profile.vkyc_completed
-            }
+                vkyc_completed: profile.vkyc_completed,
+                can_upload_reports: profile.can_upload_reports,
+            },
         };
     } catch (error) {
         console.error('Session verification error:', error);
@@ -79,7 +81,7 @@ export async function GET(request: NextRequest) {
             where.OR = [
                 { title: { contains: search, mode: 'insensitive' } },
                 { description: { contains: search, mode: 'insensitive' } },
-                { tags: { has: search } }
+                { tags: { has: search } },
             ];
         }
 
@@ -93,47 +95,40 @@ export async function GET(request: NextRequest) {
                             first_name: true,
                             last_name: true,
                             role: true,
-                            email: true
-                        }
-                    }
+                            email: true,
+                        },
+                    },
                 },
                 orderBy: {
-                    created_at: 'desc'
-                }
+                    created_at: 'desc',
+                },
             });
 
-            // Always return success with reports array (empty if no data)
             return NextResponse.json({
                 success: true,
-                reports: reports.map(report => ({
+                reports: reports.map((report) => ({
                     ...report,
                     author: {
                         name: `${report.profile.first_name || ''} ${report.profile.last_name || ''}`.trim() || 'Anonymous',
                         role: report.profile.role,
-                        email: report.profile.email
-                    }
-                }))
+                        email: report.profile.email,
+                    },
+                })),
             });
-
         } catch (dbError) {
             console.error('Database error:', dbError);
-
-            // Return empty array instead of error for database connection issues
             return NextResponse.json({
                 success: true,
                 reports: [],
-                message: 'No reports available at the moment'
+                message: 'No reports available at the moment',
             });
         }
-
     } catch (error) {
         console.error('Error fetching reports:', error);
-
-        // Return empty array instead of error
         return NextResponse.json({
             success: true,
             reports: [],
-            message: 'No reports available at the moment'
+            message: 'No reports available at the moment',
         });
     }
 }
@@ -152,10 +147,11 @@ export async function POST(request: NextRequest) {
         // Check if user has permission to upload reports
         const profile = await prisma.profile.findUnique({
             where: { id: session.user.id },
-            select: { can_upload_reports: true, role: true }
+            select: { can_upload_reports: true, role: true },
         });
 
-        if (!profile?.can_upload_reports) {
+        const isProfessional = ['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(profile?.role || '');
+        if (!profile?.can_upload_reports && !isProfessional) {
             return NextResponse.json(
                 { error: 'You do not have permission to upload reports. Only professional users (barristers, lawyers, government officials) can upload reports.' },
                 { status: 403 }
@@ -163,7 +159,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { title, category, description, pdf_url, cloudinary_public_id, tags, date, court } = body;
+        const { title, category, description, pdf_url, uploadthing_key, cloudinary_public_id, tags, date, court } = body;
 
         if (!title || !category || !pdf_url) {
             return NextResponse.json(
@@ -179,10 +175,11 @@ export async function POST(request: NextRequest) {
                 category,
                 description,
                 pdf_url,
+                uploadthing_key: uploadthing_key || cloudinary_public_id,
                 cloudinary_public_id,
                 tags: tags || [],
                 date: date ? new Date(date) : null,
-                court
+                court,
             },
             include: {
                 profile: {
@@ -190,10 +187,10 @@ export async function POST(request: NextRequest) {
                         first_name: true,
                         last_name: true,
                         role: true,
-                        email: true
-                    }
-                }
-            }
+                        email: true,
+                    },
+                },
+            },
         });
 
         return NextResponse.json({
@@ -203,11 +200,10 @@ export async function POST(request: NextRequest) {
                 author: {
                     name: `${report.profile.first_name || ''} ${report.profile.last_name || ''}`.trim() || 'Anonymous',
                     role: report.profile.role,
-                    email: report.profile.email
-                }
-            }
+                    email: report.profile.email,
+                },
+            },
         });
-
     } catch (error) {
         console.error('Error creating report:', error);
         return NextResponse.json(
@@ -238,9 +234,9 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        // First, find the report to verify ownership
+        // Find the report to verify ownership
         const report = await prisma.report.findUnique({
-            where: { id: reportId }
+            where: { id: reportId },
         });
 
         if (!report) {
@@ -257,26 +253,22 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        // Delete from Cloudinary if public_id is provided
-        if (report.cloudinary_public_id) {
+        // Delete from UploadThing if uploadthing_key or cloudinary_public_id exists
+        const fileKey = report.uploadthing_key || report.cloudinary_public_id;
+        if (fileKey) {
             try {
-                await cloudinary.uploader.destroy(report.cloudinary_public_id, {
-                    resource_type: 'raw'
-                });
-                console.log('Successfully deleted from Cloudinary:', report.cloudinary_public_id);
-            } catch (cloudinaryError) {
-                console.error('Error deleting from Cloudinary:', cloudinaryError);
-                // Continue with database deletion even if Cloudinary deletion fails
+                await utapi.deleteFiles(fileKey);
+            } catch (utError) {
+                console.warn('UploadThing file deletion warning:', utError);
             }
         }
 
         // Delete from database
         await prisma.report.delete({
-            where: { id: reportId }
+            where: { id: reportId },
         });
 
         return NextResponse.json({ success: true });
-
     } catch (error) {
         console.error('Error deleting report:', error);
         return NextResponse.json(

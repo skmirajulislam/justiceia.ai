@@ -63,6 +63,7 @@ model Report {
   pdf_url              String
   created_at           DateTime  @default(now())
   cloudinary_public_id String?
+  uploadthing_key      String?
   court                String?
   date                 DateTime?
   tags                 String[]
@@ -102,18 +103,21 @@ model ConsultationRequest {
 }
 
 model Payment {
-  id                String        @id @default(uuid())
-  request_id        String        @unique
-  client_id         String
-  advocate_id       String
-  amount            Float
-  stripe_payment_id String?
-  stripe_session_id String?       @unique
-  status            PaymentStatus @default(PENDING)
-  payment_method    String?
-  processed_at      DateTime?
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
+  id                  String        @id @default(uuid())
+  request_id          String        @unique
+  client_id           String
+  advocate_id         String
+  amount              Float
+  stripe_payment_id   String?
+  stripe_session_id   String?       @unique
+  razorpay_order_id   String?       @unique
+  razorpay_payment_id String?
+  razorpay_signature  String?
+  status              PaymentStatus @default(PENDING)
+  payment_method      String?
+  processed_at        DateTime?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
 
   @@map("payments")
 }

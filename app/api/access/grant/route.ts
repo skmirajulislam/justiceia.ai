@@ -1,38 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
 
-interface AccessRecord {
-    id: string;
-    consultationId: string;
-    clientId: string;
-    advocateId: string;
-    accessType: 'video' | 'chat' | 'both';
-    grantedAt: string;
-    expiresAt: string;
-    paymentId: string;
-    isActive: boolean;
+async function getAuthUserId(req: NextRequest): Promise<string | null> {
+    try {
+        const token = req.cookies.get('auth-token')?.value;
+        if (!token) return null;
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) return null;
+        const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+        return decoded?.userId || null;
+    } catch {
+        return null;
+    }
 }
-
-// In-memory storage for demo purposes
-const accessRecords: AccessRecord[] = [];
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        const authUserId = await getAuthUserId(request);
+        if (!authUserId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        const { consultationId, clientId, advocateId, accessType, paymentId } = body;
+        const body = await request.json();
+        const { consultationId, clientId } = body;
 
         // Validate required fields
-        if (!consultationId || !clientId || !advocateId || !accessType || !paymentId) {
+        if (!consultationId || !clientId) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing required fields: consultationId, clientId' },
                 { status: 400 }
             );
         }
 
-        // Check if access already exists for this consultation
-        const existingAccess = accessRecords.find(
-            record => record.consultationId === consultationId && record.isActive
-        );
+        // Check if active access grant already exists
+        const existingAccess = await prisma.accessGrant.findFirst({
+            where: {
+                request_id: consultationId,
+                user_id: clientId,
+                is_active: true,
+                expires_at: { gt: new Date() }
+            }
+        });
 
         if (existingAccess) {
             return NextResponse.json({
@@ -42,23 +51,26 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Grant 24-hour access after payment
+        // Grant 24-hour access
         const now = new Date();
         const expirationDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
 
-        const accessRecord: AccessRecord = {
-            id: `access_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            consultationId,
-            clientId,
-            advocateId,
-            accessType,
-            grantedAt: now.toISOString(),
-            expiresAt: expirationDate.toISOString(),
-            paymentId,
-            isActive: true
-        };
-
-        accessRecords.push(accessRecord);
+        const accessRecord = await prisma.accessGrant.upsert({
+            where: { request_id: consultationId },
+            update: {
+                user_id: clientId,
+                granted_at: now,
+                expires_at: expirationDate,
+                is_active: true,
+            },
+            create: {
+                request_id: consultationId,
+                user_id: clientId,
+                granted_at: now,
+                expires_at: expirationDate,
+                is_active: true,
+            },
+        });
 
         return NextResponse.json({
             success: true,
@@ -88,14 +100,15 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Find active access for this consultation and client
-        const access = accessRecords.find(
-            record =>
-                record.consultationId === consultationId &&
-                record.clientId === clientId &&
-                record.isActive &&
-                new Date(record.expiresAt) > new Date()
-        );
+        // Find active access for this consultation and client in PostgreSQL
+        const access = await prisma.accessGrant.findFirst({
+            where: {
+                request_id: consultationId,
+                user_id: clientId,
+                is_active: true,
+                expires_at: { gt: new Date() }
+            }
+        });
 
         if (!access) {
             return NextResponse.json({
@@ -109,7 +122,7 @@ export async function GET(request: NextRequest) {
             success: true,
             hasAccess: true,
             access,
-            timeRemaining: new Date(access.expiresAt).getTime() - Date.now()
+            timeRemaining: new Date(access.expires_at).getTime() - Date.now()
         });
 
     } catch (error) {

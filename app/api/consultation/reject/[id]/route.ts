@@ -1,32 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// In-memory storage for demo purposes
-const consultationRequests: Record<string, any> = {};
+import jwt from 'jsonwebtoken';
+import prisma from '@/lib/prisma';
+import { RequestStatus } from '@/app/generated/prisma';
 
 export async function PUT(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const token = request.cookies.get('auth-token')?.value;
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        }
+
+        let decoded: { userId: string };
+        try {
+            decoded = jwt.verify(token, jwtSecret) as { userId: string };
+        } catch {
+            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+        }
+
         const params = await context.params;
         const requestId = params.id;
 
-        // Update request status to rejected
-        if (consultationRequests[requestId]) {
-            consultationRequests[requestId].status = 'rejected';
-            consultationRequests[requestId].updatedAt = new Date().toISOString();
+        // Fetch the consultation request
+        const consultationRequest = await prisma.consultationRequest.findUnique({
+            where: { id: requestId },
+        });
+
+        if (!consultationRequest) {
+            return NextResponse.json({ error: 'Consultation request not found' }, { status: 404 });
         }
 
-        // Here you would typically:
-        // 1. Update database
-        // 2. Send notification to client
-        // 3. Refund payment if already processed
-        // 4. Send real-time notification via socket
+        // Verify that the logged-in user is the assigned advocate
+        if (consultationRequest.advocate_id !== decoded.userId) {
+            return NextResponse.json({ error: 'Forbidden: Only the assigned advocate can reject this request' }, { status: 403 });
+        }
+
+        // Update request status in PostgreSQL
+        const updatedRequest = await prisma.consultationRequest.update({
+            where: { id: requestId },
+            data: {
+                status: RequestStatus.REJECTED,
+                updated_at: new Date(),
+            },
+        });
 
         return NextResponse.json({
             success: true,
             message: 'Consultation request rejected',
-            request: consultationRequests[requestId]
+            request: updatedRequest,
         });
 
     } catch (error) {

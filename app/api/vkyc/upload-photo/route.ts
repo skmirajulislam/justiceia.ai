@@ -1,44 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
-import cloudinary from '@/lib/cloudinary'
-import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { NextRequest, NextResponse } from 'next/server';
+import { UTApi } from 'uploadthing/server';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
+
+const utapi = new UTApi();
 
 export async function POST(req: NextRequest) {
     try {
-        // Verify authentication
-        const cookieStore = await cookies()
-        const token = cookieStore.get('auth-token')?.value
+        const cookieStore = await cookies();
+        const token = cookieStore.get('auth-token')?.value;
 
         if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
-        const { image, documentType } = await req.json()
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        }
+
+        const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+        const { image, documentType } = await req.json();
 
         if (!image || !documentType) {
-            return NextResponse.json({ error: 'Missing image or document type' }, { status: 400 })
+            return NextResponse.json({ error: 'Missing image or document type' }, { status: 400 });
         }
 
-        // Upload to Cloudinary
-        const uploadResult = await cloudinary.uploader.upload(image, {
-            folder: `vkyc-documents/${decoded.userId}`,
-            public_id: `${documentType}_${Date.now()}`,
-            resource_type: 'image',
-            transformation: [
-                { quality: 'auto' },
-                { fetch_format: 'auto' }
-            ]
-        })
+        // Convert base64 data URL to Buffer/File
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const fileName = `${documentType}_${decoded.userId}_${Date.now()}.jpg`;
+        const file = new File([buffer], fileName, { type: 'image/jpeg' });
+
+        const uploadResult = await utapi.uploadFiles(file);
+
+        if (uploadResult.error) {
+            throw new Error(uploadResult.error.message);
+        }
 
         return NextResponse.json({
             success: true,
-            url: uploadResult.secure_url,
-            publicId: uploadResult.public_id
-        })
-
-    } catch (error) {
-        console.error('Photo upload error:', error)
-        return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+            url: uploadResult.data.url,
+            key: uploadResult.data.key,
+            publicId: uploadResult.data.key,
+        });
+    } catch (error: any) {
+        console.error('Photo upload error:', error);
+        return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
     }
 }

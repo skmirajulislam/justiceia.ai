@@ -59,7 +59,7 @@ export const initSocket = (server: HTTPServer): Server => {
             addTrailingSlash: false,
             cors: {
                 origin: process.env.NODE_ENV === 'production'
-                    ? ['https://your-domain.com']
+                    ? [process.env.NEXT_PUBLIC_APP_URL || '*']
                     : ['http://localhost:3000'],
                 methods: ['GET', 'POST']
             }
@@ -68,8 +68,13 @@ export const initSocket = (server: HTTPServer): Server => {
         io.on('connection', (socket: Socket) => {
             console.log('Client connected:', socket.id);
 
-            // Register user and track online status
+            // Register user, join personal room, and track online status
             socket.on('register-user', (userId: string) => {
+                if (!userId) return;
+
+                // Join the user's personal room for direct routing (WebRTC, chat)
+                socket.join(userId);
+
                 if (!onlineUsers.has(userId)) {
                     onlineUsers.set(userId, new Set());
                 }
@@ -130,13 +135,13 @@ export const initSocket = (server: HTTPServer): Server => {
                 });
             });
 
-            // Handle call attempt notifications (for offline users)
+            // Handle call attempt notifications
             socket.on('call-attempt-notification', (data: {
                 targetUserId: string;
                 callerName: string;
                 callerId: string;
             }) => {
-                console.log(`Call attempt from ${data.callerName} to ${data.targetUserId}`);
+                socket.to(data.targetUserId).emit('call-attempt-received', data);
             });
 
             // Handle disconnection

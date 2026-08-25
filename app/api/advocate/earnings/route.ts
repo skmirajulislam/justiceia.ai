@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const token = request.cookies.get('auth-token')?.value;
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        if (!session?.user || !['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(session.user.role)) {
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        }
+
+        let decoded: { userId: string; email: string; role: string };
+        try {
+            decoded = jwt.verify(token, jwtSecret) as { userId: string; email: string; role: string };
+        } catch {
+            return NextResponse.json({ error: 'Invalid authentication token' }, { status: 401 });
+        }
+
+        const user = await prisma.profile.findUnique({
+            where: { id: decoded.userId },
+        });
+
+        if (!user || !['BARRISTER', 'LAWYER', 'GOVERNMENT_OFFICIAL'].includes(user.role)) {
             return NextResponse.json({ error: 'Unauthorized. Only professional users can view earnings.' }, { status: 401 });
         }
 
@@ -17,7 +35,7 @@ export async function GET(request: NextRequest) {
         // Get monthly earnings for the year
         const monthlyEarnings = await prisma.monthlyEarnings.findMany({
             where: {
-                advocate_id: session.user.id,
+                advocate_id: user.id,
                 year,
             },
             orderBy: {
@@ -28,7 +46,7 @@ export async function GET(request: NextRequest) {
         // Get total earnings and consultation count
         const totalStats = await prisma.monthlyEarnings.aggregate({
             where: {
-                advocate_id: session.user.id,
+                advocate_id: user.id,
             },
             _sum: {
                 total_amount: true,
@@ -37,10 +55,9 @@ export async function GET(request: NextRequest) {
         });
 
         // Get recent payments
-        // Get recent payments (without relations since they're not defined in schema)
         const recentPayments = await prisma.payment.findMany({
             where: {
-                advocate_id: session.user.id,
+                advocate_id: user.id,
                 status: 'COMPLETED',
             },
             orderBy: {
@@ -52,7 +69,7 @@ export async function GET(request: NextRequest) {
         // Get client and request data separately
         const formattedPayments = await Promise.all(
             recentPayments.map(async (payment) => {
-                const request = await prisma.consultationRequest.findUnique({
+                const requestItem = await prisma.consultationRequest.findUnique({
                     where: { id: payment.request_id }
                 });
 
@@ -67,10 +84,10 @@ export async function GET(request: NextRequest) {
                 return {
                     id: payment.id,
                     amount: payment.amount,
-                    clientName: client ? `${client.first_name} ${client.last_name}` : 'Unknown Client',
-                    consultationType: request?.consultation_type || 'UNKNOWN',
+                    clientName: client ? `${client.first_name || ''} ${client.last_name || ''}`.trim() : 'Unknown Client',
+                    consultationType: requestItem?.consultation_type || 'UNKNOWN',
                     processedAt: payment.processed_at,
-                    title: request?.title || 'Consultation',
+                    title: requestItem?.title || 'Consultation',
                 };
             })
         );
