@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   env: {
     JWT_SECRET: process.env.JWT_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
   },
   images: {
     remotePatterns: [
@@ -19,12 +19,17 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'rbo6om9l82.ufs.sh',
+        hostname: 'utfs.io',
         pathname: '**',
       },
       {
         protocol: 'https',
-        hostname: 'res.cloudinary.com',
+        hostname: '**.ufs.sh',
+        pathname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'uploadthing.com',
         pathname: '**',
       },
     ],

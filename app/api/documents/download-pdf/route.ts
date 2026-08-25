@@ -245,23 +245,44 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Clean HTML content and remove unwanted elements
+ * Clean HTML content and remove unwanted elements safely without polynomial regexes
  */
 function cleanContent(content: string): string {
-    return content
-        .replace(/<script[^>]*>.*?<\/script>/gi, '')
-        .replace(/<style[^>]*>.*?<\/style>/gi, '')
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#x27;/g, "'")
-        .replace(/&#39;/g, "'")
-        .replace(/\{[^}]*\}/g, '')
+    if (!content) return '';
+    
+    // Linear single-pass HTML tag stripper without backtracking
+    let inTag = false;
+    let text = '';
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        if (char === '<') {
+            inTag = true;
+        } else if (char === '>') {
+            inTag = false;
+            text += ' ';
+        } else if (!inTag) {
+            text += char;
+        }
+    }
+
+    const htmlEntities: Record<string, string> = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#x27;': "'",
+        '&#39;': "'",
+    };
+
+    let cleaned = text;
+    for (const [entity, replacement] of Object.entries(htmlEntities)) {
+        cleaned = cleaned.replaceAll(entity, replacement);
+    }
+
+    return cleaned
         .replace(/[ \t]+/g, ' ')
-        .replace(/\n[ \t]+/g, '\n')
+        .replace(/\n\s+/g, '\n')
         .trim();
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { Send, Bot, User, MessageSquare, Scale } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import Navbar from '@/components/layout/Navbar';
-import DOMPurify from 'dompurify';
 
 interface Message {
     id: string;
@@ -19,33 +18,43 @@ interface Message {
     timestamp: Date;
 }
 
-// Function to safely parse markdown-style formatting and sanitize HTML against XSS
-const parseMarkdown = (text: string) => {
-    const rawHtml = text
-        .replace(/\*\*\*\*(.*?)\*\*\*\*/g, '<strong>$1</strong>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/\n/g, '<br/>');
-
-    // Strict DOMPurify sanitization
-    if (typeof window !== 'undefined') {
-        return DOMPurify.sanitize(rawHtml, {
-            ALLOWED_TAGS: ['strong', 'em', 'b', 'i', 'p', 'br', 'span', 'ul', 'ol', 'li', 'code'],
-            ALLOWED_ATTR: ['class']
-        });
-    }
-    return rawHtml;
-};
-
-// Component to render safely formatted message content
-const MessageContent = ({ content }: { content: string }) => {
-    const formattedContent = parseMarkdown(content);
+// Pure React message renderer (eliminates dangerouslySetInnerHTML and DOM text reinterpretation XSS)
+const MessageContent: React.FC<{ content: string }> = ({ content }) => {
+    const lines = content.split('\n');
 
     return (
-        <div
-            className="text-sm space-y-1"
-            dangerouslySetInnerHTML={{ __html: formattedContent }}
-        />
+        <div className="text-sm space-y-1.5">
+            {lines.map((line, lineIdx) => {
+                if (!line.trim()) {
+                    return <div key={lineIdx} className="h-1.5" />;
+                }
+
+                // Tokenize **bold** and *italic* safely into React components
+                const tokens = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+
+                return (
+                    <p key={lineIdx} className="leading-relaxed">
+                        {tokens.map((token, tokenIdx) => {
+                            if (token.startsWith('**') && token.endsWith('**') && token.length >= 4) {
+                                return (
+                                    <strong key={tokenIdx} className="font-semibold text-inherit">
+                                        {token.slice(2, -2)}
+                                    </strong>
+                                );
+                            }
+                            if (token.startsWith('*') && token.endsWith('*') && token.length >= 2) {
+                                return (
+                                    <em key={tokenIdx} className="italic text-inherit">
+                                        {token.slice(1, -1)}
+                                    </em>
+                                );
+                            }
+                            return <span key={tokenIdx}>{token}</span>;
+                        })}
+                    </p>
+                );
+            })}
+        </div>
     );
 };
 
@@ -84,12 +93,6 @@ const AIChatbot = () => {
                     return;
                 }
 
-                // Check if custom API key is stored in localStorage
-                const storedApiKey = localStorage.getItem('gemini_api_key');
-                if (storedApiKey) {
-                    setApiKey(storedApiKey);
-                }
-
                 // Initial welcome message
                 setMessages([{
                     id: '1',
@@ -116,12 +119,12 @@ const AIChatbot = () => {
             return;
         }
 
-        localStorage.setItem('gemini_api_key', apiKey);
+        // Store custom key in in-memory component state
         setShowApiKeyInput(false);
 
         toast({
-            title: "API Key Saved",
-            description: "Custom Gemini API key configured successfully!",
+            title: "API Key Configured",
+            description: "Custom Gemini API key configured for this session.",
         });
     };
 
@@ -178,7 +181,7 @@ const AIChatbot = () => {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'I apologize, but I encountered an error processing your request. Please ensure an API key is configured and try again.',
+                content: 'I apologize, but I encountered an error processing your request. Please ensure an API key is configured on the server or enter a custom key.',
                 timestamp: new Date()
             };
 
@@ -205,7 +208,6 @@ const AIChatbot = () => {
     };
 
     const resetApiKey = () => {
-        localStorage.removeItem('gemini_api_key');
         setApiKey('');
         setShowApiKeyInput(true);
     };
@@ -248,7 +250,7 @@ const AIChatbot = () => {
                                     Clear Chat
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={resetApiKey}>
-                                    {apiKey ? 'Change API Key' : 'Set API Key'}
+                                    {apiKey ? 'Change Key' : 'Set Custom Key'}
                                 </Button>
                             </div>
                         </CardHeader>
@@ -259,7 +261,7 @@ const AIChatbot = () => {
                                     <Bot className="w-16 h-16 mx-auto text-sky-500" />
                                     <h3 className="text-lg font-semibold">Custom API Key Setup</h3>
                                     <p className="text-slate-600 dark:text-slate-400 max-w-md text-sm">
-                                        Enter your personal Google Gemini API key if not configured in the server environment.
+                                        Enter your Google Gemini API key if not configured in the server environment. Key is stored securely in memory for this session only.
                                     </p>
                                 </div>
                                 <div className="w-full max-w-md space-y-3">
@@ -275,7 +277,7 @@ const AIChatbot = () => {
                                             Cancel
                                         </Button>
                                         <Button onClick={handleApiKeySubmit} className="flex-1 bg-sky-600 hover:bg-sky-700">
-                                            Save Key
+                                            Apply Key
                                         </Button>
                                     </div>
                                     <p className="text-xs text-slate-500 text-center">

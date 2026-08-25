@@ -354,7 +354,7 @@ const VKYC = () => {
         checkAuth();
     }, [session, authLoading, router, isFullKYC, fullForm, basicForm]);
 
-    const uploadPhotoToCloudinary = async (imageData: string, documentType: string): Promise<string | null> => {
+    const uploadPhotoToUploadThing = async (imageData: string, documentType: string): Promise<string | null> => {
         try {
             const response = await fetch('/api/vkyc/upload-photo', {
                 method: 'POST',
@@ -393,8 +393,8 @@ const VKYC = () => {
             // Close camera modal immediately
             setShowCamera(false);
 
-            // Upload to Cloudinary
-            const uploadedUrl = await uploadPhotoToCloudinary(imageData, documentType);
+            // Upload via UploadThing endpoint
+            const uploadedUrl = await uploadPhotoToUploadThing(imageData, documentType);
 
             if (uploadedUrl) {
                 setCapturedPhotos(prev => ({

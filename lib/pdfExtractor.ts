@@ -1,58 +1,68 @@
-// Simple PDF text extraction without external dependencies
+// Linear, safe PDF text extraction without polynomial regular expressions
 export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> {
     try {
+        // Try advanced PDF extraction using pdfjs-dist first
+        try {
+            const advancedText = await extractPDFTextAdvanced(arrayBuffer);
+            if (advancedText && advancedText.length > 20) {
+                return advancedText;
+            }
+        } catch {
+            // Fallback to safe linear byte scanner
+        }
+
         const data = new Uint8Array(arrayBuffer);
-        const pdfString = Array.from(data, byte => String.fromCharCode(byte)).join('');
+        const textChunks: string[] = [];
+        let inParentheses = false;
+        let currentChunk: number[] = [];
+        let escapeNext = false;
 
-        // Method 1: Extract text from PDF streams
-        let extractedText = '';
+        // Linear O(N) single-pass token scanner (no ReDoS / polynomial backtracking)
+        for (let i = 0; i < data.length; i++) {
+            const byte = data[i];
 
-        // Look for text objects in PDF
-        const textRegex = /BT\s*(.*?)\s*ET/g;
-        const textMatches = pdfString.match(textRegex) || [];
-
-        for (const match of textMatches) {
-            // Extract text from within parentheses
-            const textContent = match.match(/\((.*?)\)/g) || [];
-            for (const text of textContent) {
-                const cleanText = text.slice(1, -1) // Remove parentheses
-                    .replace(/\\n/g, '\n')
-                    .replace(/\\r/g, '\r')
-                    .replace(/\\t/g, '\t')
-                    .replace(/\\\\/g, '\\')
-                    .replace(/\\'/g, "'")
-                    .replace(/\\"/g, '"');
-                extractedText += cleanText + ' ';
+            if (escapeNext) {
+                if (byte === 110) { // 'n' -> newline
+                    currentChunk.push(10);
+                } else if (byte === 114) { // 'r' -> carriage return
+                    currentChunk.push(13);
+                } else if (byte === 116) { // 't' -> tab
+                    currentChunk.push(9);
+                } else {
+                    currentChunk.push(byte);
+                }
+                escapeNext = false;
+                continue;
             }
-        }
 
-        // Method 2: Look for Tj and TJ operators
-        if (extractedText.length < 50) {
-            const tjRegex = /\((.*?)\)\s*Tj/g;
-            let match;
-            while ((match = tjRegex.exec(pdfString)) !== null) {
-                extractedText += match[1] + ' ';
+            if (byte === 92) { // '\'
+                if (inParentheses) {
+                    escapeNext = true;
+                }
+                continue;
             }
-        }
 
-        // Method 3: Extract from font mappings and content streams
-        if (extractedText.length < 50) {
-            const streamRegex = /stream\s*(.*?)\s*endstream/g;
-            const streams = pdfString.match(streamRegex) || [];
-
-            for (const stream of streams) {
-                const textMatches = stream.match(/\((.*?)\)/g) || [];
-                for (const text of textMatches) {
-                    const cleanText = text.slice(1, -1);
-                    if (cleanText.length > 2 && /[a-zA-Z]/.test(cleanText)) {
-                        extractedText += cleanText + ' ';
+            if (byte === 40) { // '('
+                inParentheses = true;
+                currentChunk = [];
+            } else if (byte === 41) { // ')'
+                if (inParentheses) {
+                    inParentheses = false;
+                    if (currentChunk.length > 0) {
+                        const str = String.fromCharCode(...currentChunk);
+                        if (/[\w\s]/.test(str)) {
+                            textChunks.push(str);
+                        }
+                        currentChunk = [];
                     }
                 }
+            } else if (inParentheses) {
+                currentChunk.push(byte);
             }
         }
 
-        // Clean up the extracted text
-        extractedText = extractedText
+        const extractedText = textChunks
+            .join(' ')
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -64,12 +74,11 @@ export async function extractPDFText(arrayBuffer: ArrayBuffer): Promise<string> 
     }
 }
 
-// Advanced PDF.js text extraction (fallback)
+// Advanced PDF.js text extraction
 export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<string> {
     try {
         const pdfjsLib = await import('pdfjs-dist');
 
-        // Disable worker for server-side usage  
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
         const loadingTask = pdfjsLib.getDocument({
@@ -80,7 +89,7 @@ export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<
         });
 
         const pdf = await loadingTask.promise;
-        let fullText = '';
+        const pages: string[] = [];
 
         for (let i = 1; i <= pdf.numPages; i++) {
             try {
@@ -89,14 +98,17 @@ export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<
 
                 const pageText = textContent.items
                     .map((item: any) => {
-                        if ('str' in item) {
+                        if ('str' in item && typeof item.str === 'string') {
                             return item.str;
                         }
                         return '';
                     })
+                    .filter(Boolean)
                     .join(' ');
 
-                fullText += pageText + '\n';
+                if (pageText.trim()) {
+                    pages.push(pageText.trim());
+                }
             } catch (pageError) {
                 console.warn(`Error extracting text from page ${i}:`, pageError);
                 continue;
@@ -104,7 +116,7 @@ export async function extractPDFTextAdvanced(arrayBuffer: ArrayBuffer): Promise<
         }
 
         await pdf.destroy();
-        return fullText.trim();
+        return pages.join('\n\n').trim();
 
     } catch (error) {
         console.error('Advanced PDF extraction error:', error);

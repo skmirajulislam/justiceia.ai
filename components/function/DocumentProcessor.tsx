@@ -119,16 +119,7 @@ const DocumentProcessor = () => {
                 return;
             }
 
-            // Check for stored API key
-            try {
-                const storedApiKey = localStorage.getItem('gemini_api_key');
-                if (storedApiKey) {
-                    setApiKey(storedApiKey);
-                    setShowApiKeyInput(false);
-                }
-            } catch (error) {
-                console.error('Error checking stored API key:', error);
-            }
+            // Session is validated; server environment provides default Gemini key
         };
 
         checkAuth();
@@ -166,12 +157,12 @@ const DocumentProcessor = () => {
             return;
         }
 
-        localStorage.setItem('gemini_api_key', apiKey);
+        // Store custom key in in-memory component state
         setShowApiKeyInput(false);
 
         toast({
-            title: "API Key Saved",
-            description: "You can now use AI document processing features!",
+            title: "API Key Configured",
+            description: "Custom Gemini API key active for this session.",
         });
     };
 

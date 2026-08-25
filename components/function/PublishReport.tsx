@@ -48,6 +48,7 @@ interface Report {
     category: string;
     description?: string;
     pdf_url: string;
+    uploadthing_key?: string;
     cloudinary_public_id?: string;
     court?: string;
     date?: string;
@@ -181,7 +182,7 @@ const PublishReport = () => {
         }
     };
 
-    const uploadPDF = async (file: File): Promise<{ url: string, publicId: string } | null> => {
+    const uploadPDF = async (file: File): Promise<{ url: string; key: string; publicId: string } | null> => {
         setIsUploading(true);
         setUploadProgress(0);
 
@@ -213,7 +214,8 @@ const PublishReport = () => {
             if (response.ok) {
                 return {
                     url: data.url,
-                    publicId: data.public_id
+                    key: data.key || data.public_id || '',
+                    publicId: data.public_id || data.key || ''
                 };
             } else {
                 throw new Error(data.error || 'Upload failed');
@@ -250,12 +252,13 @@ const PublishReport = () => {
         setIsLoading(true);
 
         try {
+            // Upload PDF file first
             const uploadResult = await uploadPDF(selectedFile);
-
             if (!uploadResult) {
                 throw new Error('Failed to upload PDF file');
             }
 
+            // Create report record
             const response = await fetch('/api/reports', {
                 method: 'POST',
                 headers: {
@@ -268,7 +271,7 @@ const PublishReport = () => {
                     court: values.court,
                     date: values.date,
                     pdf_url: uploadResult.url,
-                    cloudinary_public_id: uploadResult.publicId,
+                    uploadthing_key: uploadResult.key,
                     tags: tags
                 }),
             });
@@ -302,11 +305,11 @@ const PublishReport = () => {
         }
     };
 
-    const deleteReport = async (reportId: string, cloudinaryPublicId?: string) => {
+    const deleteReport = async (reportId: string, fileKey?: string) => {
         try {
             const params = new URLSearchParams({
                 id: reportId,
-                ...(cloudinaryPublicId && { publicId: cloudinaryPublicId })
+                ...(fileKey && { fileKey: fileKey, publicId: fileKey })
             });
 
             const response = await fetch(`/api/reports?${params}`, {
@@ -692,7 +695,7 @@ const PublishReport = () => {
                                                                 <Button
                                                                     variant="destructive"
                                                                     size="sm"
-                                                                    onClick={() => deleteReport(report.id, report.cloudinary_public_id)}
+                                                                    onClick={() => deleteReport(report.id, report.uploadthing_key || report.cloudinary_public_id)}
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>

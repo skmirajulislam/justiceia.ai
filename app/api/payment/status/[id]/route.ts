@@ -7,18 +7,22 @@ export async function GET(
 ) {
     try {
         const params = await context.params;
-        const sessionId = params.id;
+        const identifier = params.id;
 
-        // Find the payment record
+        // Find the payment record by ID, razorpay_order_id, or stripe_session_id
         const payment = await prisma.payment.findFirst({
             where: {
-                stripe_session_id: sessionId, // Using this field for our fake session ID
+                OR: [
+                    { id: identifier },
+                    { razorpay_order_id: identifier },
+                    { stripe_session_id: identifier },
+                ]
             },
         });
 
         if (!payment) {
             return NextResponse.json({
-                error: 'Payment session not found'
+                error: 'Payment record not found'
             }, { status: 404 });
         }
 
@@ -26,13 +30,12 @@ export async function GET(
             success: true,
             payment: {
                 id: payment.id,
-                session_id: payment.stripe_session_id,
+                order_id: payment.razorpay_order_id || payment.stripe_session_id,
                 amount: payment.amount,
                 status: payment.status,
-                payment_method: payment.payment_method,
-                transaction_id: payment.stripe_payment_id,
+                payment_method: payment.payment_method || 'RAZORPAY',
+                transaction_id: payment.razorpay_payment_id || payment.stripe_payment_id,
                 processed_at: payment.processed_at,
-                is_fake_payment: true
             }
         });
 
